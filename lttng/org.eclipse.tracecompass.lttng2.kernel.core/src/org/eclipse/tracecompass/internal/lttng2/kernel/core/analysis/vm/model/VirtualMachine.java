@@ -21,13 +21,13 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 public class VirtualMachine {
 
     private static enum MachineType {
-        HOST,
-        GUEST
+        HOST, GUEST
     }
 
     private final long fVmUid;
     private final String fHostId;
     private final MachineType fType;
+    private final String fTraceName;
 
     /**
      * Create a new host machine. A host is a physical machine that may contain
@@ -35,10 +35,12 @@ public class VirtualMachine {
      *
      * @param hostId
      *            The host ID of the trace(s) this machine represents
+     * @param traceName
+     *            The name of the trace
      * @return A {@link VirtualMachine} of type host
      */
-    public static VirtualMachine newHostMachine(String hostId) {
-        return new VirtualMachine(MachineType.HOST, hostId, -1);
+    public static VirtualMachine newHostMachine(String hostId, String traceName) {
+        return new VirtualMachine(MachineType.HOST, hostId, -1, traceName);
     }
 
     /**
@@ -50,16 +52,19 @@ public class VirtualMachine {
      *            in both the guest and the host to match both machines.
      * @param hostId
      *            The host ID of the trace(s) this machine represents
+     * @param traceName
+     *            The name of the trace
      * @return A {@link VirtualMachine} of type guest.
      */
-    public static VirtualMachine newGuestMachine(long uid, String hostId) {
-        return new VirtualMachine(MachineType.GUEST, hostId, uid);
+    public static VirtualMachine newGuestMachine(long uid, String hostId, String traceName) {
+        return new VirtualMachine(MachineType.GUEST, hostId, uid, traceName);
     }
 
-    private VirtualMachine(MachineType type, String hostId, long uid) {
+    private VirtualMachine(MachineType type, String hostId, long uid, String traceName) {
         fType = type;
         fVmUid = uid;
         fHostId = hostId;
+        fTraceName = traceName;
     }
 
     /**
@@ -89,6 +94,15 @@ public class VirtualMachine {
      */
     public String getHostId() {
         return fHostId;
+    }
+
+    /**
+     * Get the trace's name.
+     *
+     * @return The trace's name.
+     */
+    public String getTraceName() {
+        return fTraceName;
     }
 
     @Override

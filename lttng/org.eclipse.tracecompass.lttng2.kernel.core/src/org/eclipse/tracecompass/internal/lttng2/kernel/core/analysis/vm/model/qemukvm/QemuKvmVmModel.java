@@ -33,7 +33,9 @@ import org.eclipse.tracecompass.tmf.core.trace.TmfTraceUtils;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperimentUtils;
 
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Table;
 
 /**
  * The virtual machine model corresponding to the Qemu/KVM hypervisor. It uses
@@ -53,6 +55,8 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     private final Map<HostThread, VirtualMachine> fTidToVm = new HashMap<>();
     /* Maps a virtual machine name to a virtual machine */
     private final Map<String, VirtualMachine> fKnownMachines = new HashMap<>();
+    /* Associate a VM and a VCPU to a PCPU */
+    private final Table<VirtualMachine, VirtualCPU, Long> fVirtualToPhysicalCpu = NonNullUtils.checkNotNull(HashBasedTable.<VirtualMachine, VirtualCPU, Long> create());
 
     private final TmfExperiment fExperiment;
 
@@ -95,19 +99,25 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
          */
         /* Try to get the virtual machine from the event */
         String eventName = event.getName();
+        String traceName = event.getTrace().getName();
+        if (traceName == null) {
+            traceName = "Unknown trace"; //$NON-NLS-1$
+        }
         if (eventName.startsWith(KVM)) {
             /* Only the host machine has kvm_* events, so this is a host */
-            machine = VirtualMachine.newHostMachine(hostId);
+            machine = VirtualMachine.newHostMachine(hostId, traceName);
         } else if (eventName.equals(QemuKvmStrings.VMSYNC_GH_GUEST) || eventName.equals(QemuKvmStrings.VMSYNC_HG_GUEST)) {
             /* Those events are only present in the guests */
             TmfEventField field = (TmfEventField) event.getContent();
             ITmfEventField data = field.getField(QemuKvmStrings.VM_UID_PAYLOAD);
             if (data != null) {
-                machine = VirtualMachine.newGuestMachine((Long) data.getValue(), hostId);
+                machine = VirtualMachine.newGuestMachine((Long) data.getValue(), hostId, traceName);
             }
         }
         if (machine != null) {
-            /* Associate the machine to the hostID here, for cached access later */
+            /*
+             * Associate the machine to the hostID here, for cached access later
+             */
             fKnownMachines.put(hostId, machine);
         }
         return machine;
@@ -200,62 +210,137 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     public void handleEvent(ITmfEvent event) {
         /* Is the event handled by this model */
         final String eventName = event.getName();
-        if (!eventName.equals(QemuKvmStrings.VMSYNC_GH_HOST)) {
-            return;
-        }
+        switch (eventName) {
+        case QemuKvmStrings.VMSYNC_GH_HOST:
+            if (!eventName.equals(QemuKvmStrings.VMSYNC_GH_HOST)) {
+                return;
+            }
 
-        final ITmfEventField content = event.getContent();
-        final long ts = event.getTimestamp().getValue();
-        final String hostId = event.getTrace().getHostId();
+            final ITmfEventField content = event.getContent();
+            long ts = event.getTimestamp().getValue();
+            String hostId = event.getTrace().getHostId();
 
-        final Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
-        if (cpu == null) {
-            /* We couldn't find any CPU information, ignore this event */
-            return;
-        }
+            Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+            if (cpu == null) {
+                /* We couldn't find any CPU information, ignore this event */
+                return;
+            }
 
-        /* Find a virtual machine with the vm uid payload value */
-        ITmfEventField data = content.getField(QemuKvmStrings.VM_UID_PAYLOAD);
-        if (data == null) {
-            return;
-        }
-        long vmUid = (Long) data.getValue();
-        for (Entry<String, VirtualMachine> entry : fKnownMachines.entrySet()) {
-            if (entry.getValue().getVmUid() == vmUid) {
-                /*
-                 * We found the VM being run, let's associate it with the thread
-                 * ID
-                 */
-                KernelAnalysisModule module = getLttngKernelModuleFor(hostId);
-                if (module == null) {
-                    break;
-                }
-                Integer tid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
-                if (tid == null) {
+            /* Find a virtual machine with the vm uid payload value */
+            ITmfEventField data = content.getField(QemuKvmStrings.VM_UID_PAYLOAD);
+            if (data == null) {
+                return;
+            }
+            long vmUid = (Long) data.getValue();
+            for (Entry<String, VirtualMachine> entry : fKnownMachines.entrySet()) {
+                if (entry.getValue().getVmUid() == vmUid) {
                     /*
-                     * We do not know which process is running at this point. It
-                     * may happen at the beginning of the trace.
+                     * We found the VM being run, let's associate it with the
+                     * thread ID
                      */
-                    break;
-                }
-                HostThread ht = new HostThread(hostId, tid);
-                fTidToVm.put(ht, entry.getValue());
+                    KernelAnalysisModule module = getLttngKernelModuleFor(hostId);
+                    if (module == null) {
+                        break;
+                    }
+                    Integer tid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
+                    if (tid == null) {
+                        /*
+                         * We do not know which process is running at this
+                         * point. It may happen at the beginning of the trace.
+                         */
+                        break;
+                    }
+                    HostThread ht = new HostThread(hostId, tid);
+                    fTidToVm.put(ht, entry.getValue());
 
-                /*
-                 * To make sure siblings are also associated with this VM, also
-                 * add an entry for the parent TID
-                 */
-                Integer ppid = KernelThreadInformationProvider.getParentPid(module, tid, ts);
-                if (ppid != null) {
-                    HostThread parentHt = new HostThread(hostId, ppid);
-                    fTidToVm.put(parentHt, entry.getValue());
+                    /*
+                     * To make sure siblings are also associated with this VM,
+                     * also add an entry for the parent TID
+                     */
+                    Integer ppid = KernelThreadInformationProvider.getParentPid(module, tid, ts);
+                    if (ppid != null) {
+                        HostThread parentHt = new HostThread(hostId, ppid);
+                        fTidToVm.put(parentHt, entry.getValue());
+                    }
                 }
             }
+            break;
+        case QemuKvmStrings.KVM_ENTRY:
+            hostId = event.getTrace().getHostId();
+            ts = event.getTimestamp().getValue();
+            cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+            if (cpu == null) {
+                /* We couldn't find any CPU information, ignore this event */
+                return;
+            }
+            KernelAnalysisModule module = getLttngKernelModuleFor(hostId);
+            if (module == null) {
+                break;
+            }
+            Integer tid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
+            if (tid == null) {
+                /*
+                 * We do not know which process is running at this point. It may
+                 * happen at the beginning of the trace.
+                 */
+                break;
+            }
+            HostThread ht = new HostThread(hostId, tid);
+            VirtualCPU vcpu = getVCpuExitingHypervisorMode(event, ht);
+            VirtualMachine virtualMachine = fTidToVm.get(ht);
+            if (virtualMachine == null) {
+                return;
+            }
+            fVirtualToPhysicalCpu.put(virtualMachine, vcpu, cpu.longValue());
+            break;
+        default:
         }
+        return;
+
     }
 
     private @Nullable KernelAnalysisModule getLttngKernelModuleFor(String hostId) {
         return TmfExperimentUtils.getAnalysisModuleOfClassForHost(fExperiment, hostId, KernelAnalysisModule.class);
+    }
+
+    /**
+     * Return one of the host threads running a virtual machine.
+     *
+     * @param virtualMachine
+     *            The virtual machine.
+     * @return One of the host threads.
+     */
+    public @Nullable HostThread getHostThreadFromVm(VirtualMachine virtualMachine) {
+        for (Entry<HostThread, VirtualMachine> entry : fTidToVm.entrySet()) {
+            if (virtualMachine.getVmUid() == entry.getValue().getVmUid()) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Return the physical cpu where a vcpu is currently running.
+     *
+     * @param virtualMachine
+     *            The virtual machine that possesses the vcpu.
+     * @param vcpu
+     *            The vcpu.
+     * @return The physical cpu.
+     */
+    public @Nullable Long getPhysicalCpuFromVcpu(VirtualMachine virtualMachine, VirtualCPU vcpu) {
+        return fVirtualToPhysicalCpu.get(virtualMachine, vcpu);
+    }
+
+    /**
+     * Get the vm that a host thread is running.
+     *
+     * @param ht
+     *            The host thread.
+     * @return The virtual machine.
+     */
+    public @Nullable VirtualMachine getVmFromHostThread(HostThread ht) {
+        return fTidToVm.get(ht);
     }
 
 }
