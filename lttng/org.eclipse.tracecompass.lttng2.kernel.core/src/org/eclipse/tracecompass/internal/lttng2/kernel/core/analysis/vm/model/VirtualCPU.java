@@ -13,6 +13,10 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.tracecompass.common.core.NonNullUtils;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
+import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
+import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
@@ -29,6 +33,10 @@ public class VirtualCPU {
 
     private final VirtualMachine fVm;
     private final Long fCpuId;
+    /* Current state of the cpu. */
+    private ITmfStateValue currentState;
+    /* Current thread of the cpu. */
+    private ITmfStateValue currentThread;
 
     /**
      * Return the virtual CPU for to the virtual machine and requested CPU ID
@@ -51,6 +59,8 @@ public class VirtualCPU {
     private VirtualCPU(VirtualMachine vm, Long cpu) {
         fVm = vm;
         fCpuId = cpu;
+        currentState = StateValues.CPU_STATUS_IDLE_VALUE;
+        currentThread = TmfStateValue.newValueInt(-1);
     }
 
     /**
@@ -74,6 +84,40 @@ public class VirtualCPU {
     @Override
     public String toString() {
         return "VirtualCPU: [" + fVm + ',' + fCpuId + ']'; //$NON-NLS-1$
+    }
+
+    /**
+     * Get the current state.
+     * @return the currentState
+     */
+    public ITmfStateValue getCurrentState() {
+        return currentState;
+    }
+
+    /**
+     * Set the current state.
+     * @param currentState
+     *            the currentState to set
+     */
+    public void setCurrentState(ITmfStateValue currentState) {
+        this.currentState = currentState;
+    }
+
+    /**
+     * Get the current thread.
+     * @return the currentThread
+     */
+    public ITmfStateValue getCurrentThread() {
+        return currentThread;
+    }
+
+    /**
+     * Set the current state.
+     * @param currentThread
+     *            the currentThread to set
+     */
+    public void setCurrentThread(ITmfStateValue currentThread) {
+        this.currentThread = currentThread;
     }
 
 }

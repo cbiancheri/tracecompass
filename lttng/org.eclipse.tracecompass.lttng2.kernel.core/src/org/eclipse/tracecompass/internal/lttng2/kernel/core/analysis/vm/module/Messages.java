@@ -26,6 +26,21 @@ public class Messages extends NLS {
 
     public static @Nullable String VirtualMachineCPUAnalysis_Help;
 
+    public static @Nullable String FusedVMView_stateTypeName;
+    public static @Nullable String FusedVMView_multipleStates;
+    public static @Nullable String FusedVMView_nextResourceActionNameText;
+    public static @Nullable String FusedVMView_nextResourceActionToolTipText;
+    public static @Nullable String FusedVMView_previousResourceActionNameText;
+    public static @Nullable String FusedVMView_previousResourceActionToolTipText;
+    public static @Nullable String FusedVMView_attributeCpuName;
+    public static @Nullable String FusedVMView_attributeIrqName;
+    public static @Nullable String FusedVMView_attributeSoftIrqName;
+    public static @Nullable String FusedVMView_attributeHoverTime;
+    public static @Nullable String FusedVMView_attributeTidName;
+    public static @Nullable String FusedVMView_attributeProcessName;
+    public static @Nullable String FusedVMView_attributeSyscallName;
+    public static @Nullable String FusedVMView_attributeVirtualMachine;
+
     static {
         // initialize resource bundle
         NLS.initializeMessages(BUNDLE_NAME, Messages.class);

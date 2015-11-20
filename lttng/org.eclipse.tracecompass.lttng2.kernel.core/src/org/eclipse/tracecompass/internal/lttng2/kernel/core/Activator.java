@@ -18,6 +18,7 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.event.matching.TcpEventMatching;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.event.matching.TcpLttngEventMatching;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.event.matching.TwoWayVmEventMatching;
 import org.eclipse.tracecompass.tmf.core.event.matching.TmfEventMatching;
 import org.osgi.framework.BundleContext;
 
@@ -74,6 +75,7 @@ public class Activator extends Plugin {
     public void start(BundleContext context) throws Exception {
         super.start(context);
         plugin = this;
+        TmfEventMatching.registerMatchObject(new TwoWayVmEventMatching());
         TmfEventMatching.registerMatchObject(new TcpEventMatching());
         TmfEventMatching.registerMatchObject(new TcpLttngEventMatching());
     }

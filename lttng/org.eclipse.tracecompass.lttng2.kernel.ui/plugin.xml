@@ -55,6 +55,25 @@
       </type>
    </extension>
    <extension
+         point="org.eclipse.ui.views">
+      <view
+            class="org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview.FusedVirtualMachineView"
+            id="org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview"
+            name="Fused Virtual Machine View"
+            restorable="true">
+      </view>
+   </extension>
+   <extension
+         point="org.eclipse.linuxtools.tmf.core.analysis">
+      <output
+            class="org.eclipse.tracecompass.tmf.ui.analysis.TmfAnalysisViewOutput"
+            id="org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview">
+         <analysisId
+               id="org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis">
+         </analysisId>
+      </output>
+   </extension>
+   <extension
          point="org.eclipse.linuxtools.tmf.core.analysis">
       <parameterProvider
             class="org.eclipse.tracecompass.internal.lttng2.kernel.ui.criticalpath.CriticalPathParameterProvider">

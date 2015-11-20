@@ -30,6 +30,16 @@
             </tracetype>
       </module>
       <module
+            analysis_module="org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis"
+            automatic="false"
+            id="org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis"
+            name="Fused Virtual Machine Analysis">
+         <tracetype
+               applies="true"
+               class="org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment">
+         </tracetype>
+      </module>
+      <module
             analysis_module="org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.graph.building.LttngKernelExecutionGraph"
             applies_experiment="true"
             id="org.eclipse.tracecompass.lttng2.kernel.core.execgraph"
