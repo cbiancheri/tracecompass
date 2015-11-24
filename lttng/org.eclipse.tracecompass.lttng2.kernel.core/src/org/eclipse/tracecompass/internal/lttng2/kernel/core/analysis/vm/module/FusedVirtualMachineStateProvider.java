@@ -178,6 +178,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         String traceName = host.getTraceName();
 
         Integer cpu;
+        Integer currentVCpu = -1;
         Object cpuObj = TmfTraceUtils.resolveEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
         if (cpuObj == null) {
             /* We couldn't find any CPU information, ignore this event */
@@ -203,6 +204,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                 return;
             }
             /* Replace the vcpu value by the physical one. */
+            currentVCpu = cpu;
             cpu = physCpu.intValue();
         }
 
@@ -226,6 +228,9 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
             ITmfStateValue valueCondition;
             if (inVM) {
                 valueCondition = StateValues.CONDITION_IN_VM_VALUE;
+                int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
+                ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
+                ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
             } else {
                 valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
             }
@@ -655,6 +660,13 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                     if (vcpu == null) {
                         return;
                     }
+
+                    currentVCpu = vcpu.getCpuId().intValue();
+                    /*Set the value of the vcpu that is going to run.*/
+                    int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
+                    ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
+                    ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
+
                     /*
                      * When the state of the vm and the host are the same the
                      * transition is not detected by the view so we add a false

@@ -92,22 +92,28 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     }
 
     @Override
+    protected void rebuild() {
+        setStartTime(Long.MAX_VALUE);
+        setEndTime(Long.MIN_VALUE);
+        refresh();
+        ITmfTrace viewTrace = getTrace();
+        if (viewTrace == null) {
+            return;
+        }
+        synchronized (fBuildThreadMap) {
+            BuildThread buildThread = new BuildThread(viewTrace, viewTrace, getName());
+            fBuildThreadMap.put(viewTrace, buildThread);
+            buildThread.start();
+        }
+    }
+
+    @Override
     protected void buildEventList(ITmfTrace trace, ITmfTrace parentTrace, final IProgressMonitor monitor) {
 
         if (monitor.isCanceled()) {
             return;
         }
         if (!(parentTrace instanceof VirtualMachineExperiment)) {
-            return;
-        }
-
-        // System.out.println("Building for: " + trace.getName());
-        /*
-         * TODO: find a way to call the view only for the experiment and not for
-         * all the traces.
-         */
-        if (!trace.getName().contains("host")) { //$NON-NLS-1$
-            // System.out.println("Building aborted for " + trace.getName());
             return;
         }
 
