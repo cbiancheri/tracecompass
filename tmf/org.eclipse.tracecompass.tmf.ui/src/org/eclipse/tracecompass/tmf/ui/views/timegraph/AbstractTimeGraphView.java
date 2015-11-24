@@ -181,8 +181,9 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /** The trace to marker event sources hash map */
     private final Map<ITmfTrace, List<IMarkerEventSource>> fMarkerEventSourcesMap = new HashMap<>();
 
-    /** The trace to build thread hash map */
-    private final Map<ITmfTrace, BuildThread> fBuildThreadMap = new HashMap<>();
+    /** The trace to build thread hash map
+     * @since 2.0*/
+    protected final Map<ITmfTrace, BuildThread> fBuildThreadMap = new HashMap<>();
 
     /** The start time */
     private long fStartTime = SWT.DEFAULT;
@@ -683,11 +684,23 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
     }
 
-    private class BuildThread extends Thread {
+    /**
+     * @since 2.0
+     *
+     */
+    protected class BuildThread extends Thread {
         private final @NonNull ITmfTrace fBuildTrace;
         private final @NonNull ITmfTrace fParentTrace;
         private final @NonNull IProgressMonitor fMonitor;
 
+        /**
+         * @param trace
+         *            The trace
+         * @param parentTrace
+         *            The parent trace
+         * @param name
+         *            The name
+         */
         public BuildThread(final @NonNull ITmfTrace trace, final @NonNull ITmfTrace parentTrace, final String name) {
             super(name + " build"); //$NON-NLS-1$
             fBuildTrace = trace;
@@ -703,6 +716,9 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
             }
         }
 
+        /**
+         * Cancel the monitor
+         */
         public void cancel() {
             fMonitor.setCanceled(true);
         }

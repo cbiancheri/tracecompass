@@ -25,6 +25,7 @@ public interface Attributes {
     String STATUS = "Status";
     String CONDITION = "Condition";
     String MACHINE_NAME = "Machine_name";
+    String VIRTUAL_CPU = "Virtual_cpu";
 
     /* Sub-attributes of the Thread nodes */
     String PPID = "PPID";

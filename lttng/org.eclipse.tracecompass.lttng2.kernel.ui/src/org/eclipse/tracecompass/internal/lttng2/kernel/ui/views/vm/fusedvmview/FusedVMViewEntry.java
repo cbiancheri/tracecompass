@@ -5,6 +5,10 @@ import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
 
+/**
+ * @author Cedric Biancheri
+ *
+ */
 public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITimeGraphEntry> {
 
     /** Type of resource */

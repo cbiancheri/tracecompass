@@ -50,20 +50,9 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Integer fAverageCharWidth;
 
     private enum State {
-        IDLE_VM(new RGB(200, 200, 200)),
-        USERMODE_VM(new RGB(0, 200, 0)),
-        SYSCALL_VM(new RGB(0, 0, 200)),
-        IRQ_VM(new RGB(200, 0, 100)),
-        SOFT_IRQ_VM(new RGB(200, 150, 100)),
-        IDLE(new RGB((200 + 250) / 2, (200 + 250) / 2, (200 + 250) / 2)),
-        USERMODE(new RGB((0 + 250) / 2, (200 + 250) / 2, (0 + 250) / 2)),
-        SYSCALL(new RGB((0 + 250) / 2, (0 + 250) / 2, (200 + 250) / 2)),
-        IRQ(new RGB((200 + 250) / 2, (0 + 250) / 2, (100 + 250) / 2)),
-        SOFT_IRQ(new RGB((200 + 250) / 2, (150 + 250) / 2, (100 + 250) / 2)),
-        IRQ_ACTIVE(new RGB(200, 0, 100)),
-        SOFT_IRQ_RAISED(new RGB(200, 200, 0)),
-        SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)),
-        IN_VM(new RGB(200, 0, 200));
+        IDLE_VM(new RGB(200, 200, 200)), USERMODE_VM(new RGB(0, 200, 0)), SYSCALL_VM(new RGB(0, 0, 200)), IRQ_VM(new RGB(200, 0, 100)), SOFT_IRQ_VM(new RGB(200, 150, 100)), IDLE(new RGB((200 + 250) / 2, (200 + 250) / 2, (200 + 250) / 2)), USERMODE(
+                new RGB((0 + 250) / 2, (200 + 250) / 2, (0 + 250) / 2)), SYSCALL(new RGB((0 + 250) / 2, (0 + 250) / 2, (200 + 250) / 2)), IRQ(new RGB((200 + 250) / 2, (0 + 250) / 2, (100 + 250) / 2)), SOFT_IRQ(
+                        new RGB((200 + 250) / 2, (150 + 250) / 2, (100 + 250) / 2)), IRQ_ACTIVE(new RGB(200, 0, 100)), SOFT_IRQ_RAISED(new RGB(200, 200, 0)), SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)), IN_VM(new RGB(200, 0, 200));
 
         public final RGB rgb;
 
@@ -93,10 +82,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             int value = event.getValue();
 
             if (entry.getType() == Type.CPU) {
-                ITmfTrace exp = (ITmfTrace) entry.getTrace().getParent();
-                if (exp == null) {
-                    return null;
-                }
+                ITmfTrace exp = entry.getTrace();
                 ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(exp, FusedVirtualMachineAnalysis.ID);
                 int cpuQuark = entry.getQuark();
                 long time = event.getTime();
@@ -203,10 +189,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
 
             if (tcEvent.hasValue()) {
-                ITmfTrace exp = (ITmfTrace) entry.getTrace().getParent();
-                if (exp == null) {
-                    return retMap;
-                }
+                ITmfTrace exp = entry.getTrace();
                 ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(exp, FusedVirtualMachineAnalysis.ID);
                 if (ss == null) {
                     return retMap;
@@ -222,6 +205,19 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     ITmfStateValue value = interval.getStateValue();
                     machineName = value.unboxStr();
                     retMap.put(Messages.FusedVMView_attributeVirtualMachine, machineName);
+
+                    int conditionQuark = ss.getQuarkRelative(cpuQuark, Attributes.CONDITION);
+                    interval = ss.querySingleState(hoverTime, conditionQuark);
+                    value = interval.getStateValue();
+                    int condition = value.unboxInt();
+                    if (condition == StateValues.CONDITION_IN_VM) {
+                        int machineVCpuQuark = ss.getQuarkRelative(cpuQuark, Attributes.VIRTUAL_CPU);
+                        interval = ss.querySingleState(hoverTime, machineVCpuQuark);
+                        value = interval.getStateValue();
+                        int vcpu = value.unboxInt();
+                        retMap.put(Messages.FusedVMView_attributeVirtualCpu, String.valueOf(vcpu));
+                    }
+
                 } catch (AttributeNotFoundException e) {
                     Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
                 } catch (StateSystemDisposedException e) {
@@ -367,10 +363,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             return;
         }
 
-        ITmfTrace exp = (ITmfTrace) entry.getTrace().getParent();
-        if (exp == null) {
-            return;
-        }
+        ITmfTrace exp = entry.getTrace();
         ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(exp, FusedVirtualMachineAnalysis.ID);
         if (ss == null) {
             return;
