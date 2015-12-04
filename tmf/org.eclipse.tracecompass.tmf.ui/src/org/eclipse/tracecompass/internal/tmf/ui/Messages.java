@@ -137,6 +137,8 @@ public class Messages extends NLS {
     public static String TmfTimeGraphViewer_NextMarkerActionText;
     public static String TmfTimeGraphViewer_PreviousMarkerActionText;
     public static String TmfTimeGraphViewer_ShowMarkersMenuText;
+    public static String TmfTimeGraphViewer_SelectMachineActionNameText;
+    public static String TmfTimeGraphViewer_SelectMachineActionToolTipText;
 
     public static String Utils_ClockCyclesUnit;
 
@@ -339,6 +341,8 @@ public class Messages extends NLS {
     public static String ExportToTextJob_Export_to;
     public static String ExportToTextJob_Export_trace_to;
     public static String ExportToTextJob_Unable_to_export_trace;
+
+    public static String TmfSelectMachine_SELECT_MACHINE;
 
     static {
         // initialize resource bundle

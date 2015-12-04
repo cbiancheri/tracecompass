@@ -133,11 +133,14 @@ import org.eclipse.ui.handlers.IHandlerService;
  * An abstract view all time graph views can inherit
  *
  * This view contains either a time graph viewer, or a time graph combo which is
- * divided between a tree viewer on the left and a time graph viewer on the right.
+ * divided between a tree viewer on the left and a time graph viewer on the
+ * right.
  */
 public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeAligned, IResourceChangeListener {
 
-    /** Constant indicating that all levels of the time graph should be expanded */
+    /**
+     * Constant indicating that all levels of the time graph should be expanded
+     */
     protected static final int ALL_LEVELS = AbstractTreeViewer.ALL_LEVELS;
 
     private static final Pattern RGBA_PATTERN = Pattern.compile("RGBA \\{(\\d+), (\\d+), (\\d+), (\\d+)\\}"); //$NON-NLS-1$
@@ -163,7 +166,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /** The selected trace */
     private ITmfTrace fTrace;
 
-    /** The selected trace editor file*/
+    /** The selected trace editor file */
     private IFile fEditorFile;
 
     /** The timegraph entry list */
@@ -181,8 +184,11 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /** The trace to marker event sources hash map */
     private final Map<ITmfTrace, List<IMarkerEventSource>> fMarkerEventSourcesMap = new HashMap<>();
 
-    /** The trace to build thread hash map
-     * @since 2.0*/
+    /**
+     * The trace to build thread hash map
+     *
+     * @since 2.0
+     */
     protected final Map<ITmfTrace, BuildThread> fBuildThreadMap = new HashMap<>();
 
     /** The start time */
@@ -206,7 +212,9 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /** A comparator class */
     private Comparator<ITimeGraphEntry> fEntryComparator = null;
 
-    /** The redraw state used to prevent unnecessary queuing of display runnables */
+    /**
+     * The redraw state used to prevent unnecessary queuing of display runnables
+     */
     private State fRedrawState = State.IDLE;
 
     /** The redraw synchronization object */
@@ -340,7 +348,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     }
 
     private class TimeGraphViewerWrapper implements ITimeGraphWrapper {
-        private TimeGraphViewer viewer;
+        protected TimeGraphViewer viewer;
 
         private TimeGraphViewerWrapper(Composite parent, int style) {
             viewer = new TimeGraphViewer(parent, style);
@@ -726,13 +734,14 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
     /**
      * Zoom thread
+     *
      * @since 1.1
      */
     protected abstract class ZoomThread extends Thread {
         private final long fZoomStartTime;
         private final long fZoomEndTime;
         private final long fResolution;
-        private final @NonNull  IProgressMonitor fMonitor;
+        private final @NonNull IProgressMonitor fMonitor;
 
         /**
          * Constructor
@@ -1000,7 +1009,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
      * This should be called from the constructor.
      *
      * @param weights
-     *            The array (length 2) of relative weights of each part of the combo
+     *            The array (length 2) of relative weights of each part of the
+     *            combo
      */
     protected void setWeight(final int[] weights) {
         checkPartNotCreated();
@@ -1552,10 +1562,11 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     }
 
     /**
-     * @param signal the format of the timestamps was updated.
+     * @param signal
+     *            the format of the timestamps was updated.
      */
     @TmfSignalHandler
-    public void updateTimeFormat( final TmfTimestampFormatUpdateSignal signal){
+    public void updateTimeFormat(final TmfTimestampFormatUpdateSignal signal) {
         fTimeGraphWrapper.refresh();
     }
 
@@ -1589,7 +1600,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     }
 
     /**
-     * Forces a rebuild of the entries list, even if entries already exist for this trace
+     * Forces a rebuild of the entries list, even if entries already exist for
+     * this trace
      */
     protected void rebuild() {
         setStartTime(Long.MAX_VALUE);
@@ -1685,7 +1697,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
     /**
      * Gets the list of links (displayed as arrows) for a trace in a given
-     * timerange.  Default implementation returns an empty list.
+     * timerange. Default implementation returns an empty list.
      *
      * @param startTime
      *            Start of the time range
@@ -1734,7 +1746,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     }
 
     /**
-     * Gets the list of trace-specific markers for a trace in a given time range.
+     * Gets the list of trace-specific markers for a trace in a given time
+     * range.
      *
      * @param startTime
      *            Start of the time range
@@ -2002,7 +2015,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /**
      * Add actions to local tool bar manager
      *
-     * @param manager the tool bar manager
+     * @param manager
+     *            the tool bar manager
      */
     protected void fillLocalToolBar(IToolBarManager manager) {
         if (fFilterColumns != null && fFilterLabelProvider != null && fFilterColumns.length > 0) {
@@ -2028,7 +2042,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     /**
      * Add actions to local menu manager
      *
-     * @param manager the tool bar manager
+     * @param manager
+     *            the tool bar manager
      * @since 2.0
      */
     protected void fillLocalMenu(IMenuManager manager) {

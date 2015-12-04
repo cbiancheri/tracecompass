@@ -640,6 +640,12 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                 } else if (eventName.equals(QemuKvmStrings.KVM_ENTRY)) {
                     /* We are entering a vm. */
                     fCpusInVM.replace(cpu, true);
+
+                    /* Add the condition in_vm in the state system. */
+                    quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
+                    value = StateValues.CONDITION_IN_VM_VALUE;
+                    ss.modifyAttribute(ts, value, quark);
+
                     quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
 
                     /* Get the host CPU doing the kvm_entry. */
@@ -662,10 +668,18 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                     }
 
                     currentVCpu = vcpu.getCpuId().intValue();
-                    /*Set the value of the vcpu that is going to run.*/
+                    /* Set the value of the vcpu that is going to run. */
                     int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
                     ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
                     ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
+
+                    /*
+                     * Set the name of the VM that will run just after the
+                     * kvm_entry
+                     */
+                    int machineNameQuark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
+                    value = TmfStateValue.newValueString(virtualMachine.getTraceName());
+                    ss.modifyAttribute(ts, value, machineNameQuark);
 
                     /*
                      * When the state of the vm and the host are the same the
@@ -694,19 +708,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                     }
                     /* Restore the thread of the VM that was running. */
                     value = vcpu.getCurrentThread();
-                    ss.modifyAttribute(ts, value, quark);
-
-                    /* Add the condition in_vm in the state system. */
-                    quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
-                    value = StateValues.CONDITION_IN_VM_VALUE;
-                    ss.modifyAttribute(ts, value, quark);
-
-                    /*
-                     * Set the name of the VM that will run just after the
-                     * kvm_entry
-                     */
-                    quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
-                    value = TmfStateValue.newValueString(virtualMachine.getTraceName());
                     ss.modifyAttribute(ts, value, quark);
 
                 } else if (eventName.equals(QemuKvmStrings.KVM_EXIT)) {

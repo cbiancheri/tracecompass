@@ -48,17 +48,36 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Color fColorWhite;
     private Color fColorGray;
     private Integer fAverageCharWidth;
+    // private Map<String, Boolean> highlightedMachines;
 
     private enum State {
-        IDLE_VM(new RGB(200, 200, 200)), USERMODE_VM(new RGB(0, 200, 0)), SYSCALL_VM(new RGB(0, 0, 200)), IRQ_VM(new RGB(200, 0, 100)), SOFT_IRQ_VM(new RGB(200, 150, 100)), IDLE(new RGB((200 + 250) / 2, (200 + 250) / 2, (200 + 250) / 2)), USERMODE(
-                new RGB((0 + 250) / 2, (200 + 250) / 2, (0 + 250) / 2)), SYSCALL(new RGB((0 + 250) / 2, (0 + 250) / 2, (200 + 250) / 2)), IRQ(new RGB((200 + 250) / 2, (0 + 250) / 2, (100 + 250) / 2)), SOFT_IRQ(
-                        new RGB((200 + 250) / 2, (150 + 250) / 2, (100 + 250) / 2)), IRQ_ACTIVE(new RGB(200, 0, 100)), SOFT_IRQ_RAISED(new RGB(200, 200, 0)), SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)), IN_VM(new RGB(200, 0, 200));
+        IDLE_HIGHLIGHT(new RGB(200, 200, 200)),
+        IDLE(new RGB((200 + 255) / 2, (200 + 255) / 2, (200 + 255) / 2)),
+        USERMODE_HIGHLIGHT(new RGB(0, 200, 0)),
+        USERMODE(new RGB((0 + 255) / 2, (200 + 255) / 2, (0 + 255) / 2)),
+        SYSCALL_HIGHLIGHT(new RGB(0, 0, 200)),
+        SYSCALL(new RGB((0 + 255) / 2, (0 + 255) / 2, (200 + 255) / 2)),
+        IRQ_HIGHLIGHT(new RGB(200, 0, 100)),
+        IRQ(new RGB((200 + 255) / 2, (0 + 255) / 2, (100 + 255) / 2)),
+        SOFT_IRQ_HIGHLIGHT(new RGB(200, 150, 100)),
+        SOFT_IRQ(new RGB((200 + 255) / 2, (150 + 255) / 2, (100 + 255) / 2)),
+        IRQ_ACTIVE(new RGB(200, 0, 100)),
+        SOFT_IRQ_RAISED(new RGB(200, 200, 0)),
+        SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)),
+        IN_VM_HIGHLIGHT(new RGB(200, 0, 200)),
+        IN_VM(new RGB((200 + 255) / 2, 0, (200 + 255) / 2));
 
         public final RGB rgb;
 
         private State(RGB rgb) {
             this.rgb = rgb;
         }
+
+        public static State highLightState(State state) {
+            int n = state.ordinal();
+            return State.values()[n - 1];
+        }
+
     }
 
     /**
@@ -72,7 +91,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         return State.values();
     }
 
-    private static State getEventState(TimeEvent event) {
+    private State getEventState(TimeEvent event) {
         /*
          * TODO: Find a way to dynamically select the machine we want to
          * highlight.
@@ -82,54 +101,26 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             int value = event.getValue();
 
             if (entry.getType() == Type.CPU) {
-                ITmfTrace exp = entry.getTrace();
-                ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(exp, FusedVirtualMachineAnalysis.ID);
-                int cpuQuark = entry.getQuark();
-                long time = event.getTime();
-                int conditionQuark;
-                try {
-                    if (ss != null) {
-                        conditionQuark = ss.getQuarkRelative(cpuQuark, Attributes.CONDITION);
-                        ITmfStateInterval interval;
-                        interval = ss.querySingleState(time, conditionQuark);
-                        if (!interval.getStateValue().isNull()) {
-                            ITmfStateValue valueInVM = interval.getStateValue();
-                            int inVM = valueInVM.unboxInt();
-                            if (inVM == StateValues.CONDITION_IN_VM) {
-                                if (value == StateValues.CPU_STATUS_IDLE) {
-                                    return State.IDLE;
-                                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE) {
-                                    return State.USERMODE_VM;
-                                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL) {
-                                    return State.SYSCALL_VM;
-                                } else if (value == StateValues.CPU_STATUS_IRQ) {
-                                    return State.IRQ_VM;
-                                } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
-                                    return State.SOFT_IRQ_VM;
-                                } else if (value == StateValues.CPU_STATUS_IN_VM) {
-                                    return State.IN_VM;
-                                }
-                            } else {
-                                if (value == StateValues.CPU_STATUS_IDLE) {
-                                    return State.IDLE;
-                                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE) {
-                                    return State.USERMODE;
-                                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL) {
-                                    return State.SYSCALL;
-                                } else if (value == StateValues.CPU_STATUS_IRQ) {
-                                    return State.IRQ;
-                                } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
-                                    return State.SOFT_IRQ;
-                                } else if (value == StateValues.CPU_STATUS_IN_VM) {
-                                    return State.IN_VM;
-                                }
-                            }
-                        }
+                State state = null;
+                if (value == StateValues.CPU_STATUS_IDLE) {
+                    state = State.IDLE;
+                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE) {
+                    state = State.USERMODE;
+                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL) {
+                    state = State.SYSCALL;
+                } else if (value == StateValues.CPU_STATUS_IRQ) {
+                    state = State.IRQ;
+                } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
+                    state = State.SOFT_IRQ;
+                } else if (value == StateValues.CPU_STATUS_IN_VM) {
+                    state = State.IN_VM;
+                }
+                if (state != null) {
+                    /* Add here you condition to highlight */
+                    if (isMachineSelected(event)) {
+                        return State.highLightState(state);
                     }
-                } catch (AttributeNotFoundException e) {
-                    Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
-                } catch (StateSystemDisposedException e) {
-                    /* Ignored */
+                    return state;
                 }
 
             } else if (entry.getType() == Type.IRQ) {
@@ -455,6 +446,70 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     @Override
     public void postDrawEntry(ITimeGraphEntry entry, Rectangle bounds, GC gc) {
         fLastThreadId = -1;
+    }
+
+    //
+    // Functions used to decide if the area is highlighted or not.
+    //
+
+
+//    private static boolean isEventFromVM(ITimeEvent event) {
+//        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
+//        ITmfTrace trace = entry.getTrace();
+//        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+//        int cpuQuark = entry.getQuark();
+//        long time = event.getTime();
+//        if (ss == null) {
+//            return false;
+//        }
+//        boolean result = false;
+//        int conditionQuark;
+//        try {
+//            conditionQuark = ss.getQuarkRelative(cpuQuark, Attributes.CONDITION);
+//            ITmfStateInterval interval;
+//            interval = ss.querySingleState(time, conditionQuark);
+//            if (!interval.getStateValue().isNull()) {
+//                ITmfStateValue valueInVM = interval.getStateValue();
+//                int inVM = valueInVM.unboxInt();
+//                result |= (inVM == StateValues.CONDITION_IN_VM);
+//            }
+//        } catch (AttributeNotFoundException e) {
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//        } catch (StateSystemDisposedException e) {
+//            /* Ignored */
+//        }
+//        return result;
+//    }
+
+    private boolean isMachineSelected(ITimeEvent event) {
+        Map<String, Boolean> map = getHighlightedMachines();
+        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
+        ITmfTrace trace = entry.getTrace();
+        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+        int cpuQuark = entry.getQuark();
+        long time = event.getTime();
+        if (ss == null) {
+            return false;
+        }
+
+        String machineName = null;
+        try {
+            ITmfStateInterval interval;
+            int machineNameQuark = ss.getQuarkRelative(cpuQuark, Attributes.MACHINE_NAME);
+            interval = ss.querySingleState(time, machineNameQuark);
+            ITmfStateValue value = interval.getStateValue();
+            machineName = value.unboxStr();
+        } catch (AttributeNotFoundException e) {
+            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+        } catch (StateSystemDisposedException e) {
+            /* Ignored */
+        }
+
+        Boolean res = map.get(machineName);
+        if (res == null) {
+            return false;
+        }
+        return res;
     }
 
 }

@@ -30,6 +30,7 @@ public class Messages extends NLS {
     public static String FusedVMView_attributeTidName;
     public static String FusedVMView_attributeProcessName;
     public static String FusedVMView_attributeSyscallName;
+    public static String FusedVMView_selectMachineText;
 
     static {
         // initialize resource bundle

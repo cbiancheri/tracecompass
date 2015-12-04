@@ -69,6 +69,7 @@ import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.internal.tmf.ui.dialogs.AddBookmarkDialog;
 import org.eclipse.tracecompass.tmf.ui.signal.TmfTimeViewAlignmentInfo;
 import org.eclipse.tracecompass.tmf.ui.views.ITmfTimeAligned;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.SelectMachineDialog;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.ShowFilterDialogAction;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
@@ -95,7 +96,9 @@ import org.eclipse.ui.PlatformUI;
  */
 public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, SelectionListener {
 
-    /** Constant indicating that all levels of the time graph should be expanded */
+    /**
+     * Constant indicating that all levels of the time graph should be expanded
+     */
     public static final int ALL_LEVELS = AbstractTreeViewer.ALL_LEVELS;
 
     private static final int DEFAULT_NAME_WIDTH = 200;
@@ -113,7 +116,8 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
 
     private long fMinTimeInterval;
     private ITimeGraphEntry fSelectedEntry;
-    private long fBeginTime = SWT.DEFAULT; // The user-specified bounds start time
+    private long fBeginTime = SWT.DEFAULT; // The user-specified bounds start
+                                           // time
     private long fEndTime = SWT.DEFAULT; // The user-specified bounds end time
     private long fTime0 = SWT.DEFAULT; // The current window start time
     private long fTime1 = SWT.DEFAULT; // The current window end time
@@ -170,6 +174,7 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     private Action fNextMarkerAction;
     private Action fPreviousMarkerAction;
     private MenuManager fMarkersMenu;
+    private Action fSelectMachineAction;
 
     /** The list of bookmarks */
     private final List<IMarkerEvent> fBookmarks = new ArrayList<>();
@@ -272,7 +277,8 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     /**
      * Standard constructor.
      * <p>
-     * The default timegraph content provider accepts an ITimeGraphEntry[] as input element.
+     * The default timegraph content provider accepts an ITimeGraphEntry[] as
+     * input element.
      *
      * @param parent
      *            The parent UI composite object
@@ -712,8 +718,8 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     }
 
     /**
-     * Recalculate the time bounds based on the time graph entries,
-     * if the user-specified bound is set to SWT.DEFAULT.
+     * Recalculate the time bounds based on the time graph entries, if the
+     * user-specified bound is set to SWT.DEFAULT.
      *
      * @param entries
      *            The root time graph entries in the model
@@ -1132,7 +1138,7 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
             return;
         }
 
-        TimeGraphLegend.open(fDataViewer.getShell(), fTimeGraphProvider);
+        TimeGraphLegend.open(fDataViewer.getShell(), getTimeGraphProvider());
     }
 
     /**
@@ -2210,8 +2216,9 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
             };
             fNextMarkerAction.setToolTipText(Messages.TmfTimeGraphViewer_NextMarkerActionText);
             fNextMarkerAction.setImageDescriptor(NEXT_BOOKMARK);
-            fNextMarkerAction.setMenuCreator(new IMenuCreator () {
+            fNextMarkerAction.setMenuCreator(new IMenuCreator() {
                 Menu menu = null;
+
                 @Override
                 public void dispose() {
                     if (menu != null) {
@@ -2611,6 +2618,49 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
         int marginSize = size - alignmentWidth - offset;
         layout.marginRight = Math.max(0, marginSize);
         fTimeAlignedComposite.layout();
+    }
+
+    /**
+     * @return
+     * @since 2.0
+     */
+    public ITimeGraphPresentationProvider getTimeGraphProvider() {
+        return fTimeGraphProvider;
+    }
+
+    /**
+     * Get the select machine action.
+     *
+     * @return
+     *
+     * @since 2.0
+     */
+    public Action getSelectMachineAction() {
+        if (fSelectMachineAction == null) {
+            fSelectMachineAction = new Action() {
+                @Override
+                public void run() {
+                    selectMachine();
+                }
+            };
+            fSelectMachineAction.setText(Messages.TmfTimeGraphViewer_SelectMachineActionNameText);
+            fSelectMachineAction.setToolTipText(Messages.TmfTimeGraphViewer_SelectMachineActionToolTipText);
+            fSelectMachineAction.setImageDescriptor(Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_UI_SELECT_MACHINE));
+        }
+
+        return fSelectMachineAction;
+    }
+
+    /**
+     * Callback for the select machine action
+     * @since 2.0
+     */
+    public void selectMachine() {
+        if (fDataViewer == null || fDataViewer.isDisposed()) {
+            return;
+        }
+
+        SelectMachineDialog.open(fDataViewer.getShell(), getTimeGraphProvider());
     }
 
 }
