@@ -10,6 +10,9 @@ import java.util.Map;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.action.Separator;
 import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
@@ -20,6 +23,7 @@ import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractStateSystemTimeGraphView;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphViewer;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
@@ -127,6 +131,11 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 return ((FusedVMViewEntry) o1).compareTo(o2);
             }
         };
+
+        /* All traces are highlighted by default. */
+        for (ITmfTrace t : ((VirtualMachineExperiment) parentTrace).getTraces()) {
+            ((FusedVMViewPresentationProvider) getPresentationProvider()).getHighlightedMachines().put(t.getName(), true);
+        }
 
         Map<Integer, FusedVMViewEntry> entryMap = new HashMap<>();
         TimeGraphEntry traceEntry = null;
@@ -314,6 +323,17 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         }
 
         return eventList;
+    }
+
+    @Override
+    protected void fillLocalToolBar(IToolBarManager manager) {
+        super.fillLocalToolBar(manager);
+        TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
+        IAction selectMachineAction = timeGraphViewer.getSelectMachineAction();
+        selectMachineAction.setText("Text select machine");
+        selectMachineAction.setToolTipText("Tool tip text select machine");
+        manager.add(selectMachineAction);
+        manager.add(new Separator());
     }
 
 }

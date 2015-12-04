@@ -2136,7 +2136,7 @@ public class TimeGraphControl extends TimeGraphBaseControl
         gc.setBackground(stateColor);
         if (visible) {
             gc.fillRectangle(rect);
-        } else if (fBlendSubPixelEvents) {
+        } else if (isBlendSubPixelEvents()) {
             gc.setAlpha(128);
             gc.fillRectangle(rect);
             gc.setAlpha(255);
@@ -3235,5 +3235,13 @@ public class TimeGraphControl extends TimeGraphBaseControl
      */
     public TmfTimeViewAlignmentInfo getTimeViewAlignmentInfo() {
         return new TmfTimeViewAlignmentInfo(getShell(), toDisplay(0, 0), fTimeProvider.getNameSpace());
+    }
+
+    /**
+     * @return
+     * @since 2.0
+     */
+    public boolean isBlendSubPixelEvents() {
+        return fBlendSubPixelEvents;
     }
 }
