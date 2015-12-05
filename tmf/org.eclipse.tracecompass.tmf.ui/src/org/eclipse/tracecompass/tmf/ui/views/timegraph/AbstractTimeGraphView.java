@@ -298,7 +298,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     }
 
     private class TimeGraphViewerWrapper implements ITimeGraphWrapper {
-        protected TimeGraphViewer viewer;
+        private TimeGraphViewer viewer;
 
         private TimeGraphViewerWrapper(Composite parent, int style) {
             viewer = new TimeGraphViewer(parent, style);
