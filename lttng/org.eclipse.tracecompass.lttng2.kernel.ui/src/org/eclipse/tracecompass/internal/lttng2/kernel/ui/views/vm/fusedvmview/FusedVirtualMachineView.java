@@ -330,8 +330,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         super.fillLocalToolBar(manager);
         TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
         IAction selectMachineAction = timeGraphViewer.getSelectMachineAction();
-        selectMachineAction.setText("Text select machine");
-        selectMachineAction.setToolTipText("Tool tip text select machine");
+        selectMachineAction.setText(Messages.FusedVMView_selectMachineText);
+        selectMachineAction.setToolTipText(Messages.FusedVMView_selectMachineText);
         manager.add(selectMachineAction);
         manager.add(new Separator());
     }
