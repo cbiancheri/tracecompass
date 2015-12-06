@@ -231,7 +231,15 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                 int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
                 ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
                 ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
+
+                if (host.isGuest()) {
+                    int quarkMachines = getNodeMachines(ss);
+                    ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                }
             } else {
+                int quarkMachines = getNodeMachines(ss);
+                ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+
                 valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
             }
             ss.modifyAttribute(ts, valueCondition, quarkCondition);
@@ -815,6 +823,10 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
 
     private static int getNodeSoftIRQs(ITmfStateSystemBuilder ssb) {
         return ssb.getQuarkAbsoluteAndAdd(Attributes.RESOURCES, Attributes.SOFT_IRQS);
+    }
+
+    private static int getNodeMachines(ITmfStateSystemBuilder ssb) {
+        return ssb.getQuarkAbsoluteAndAdd(Attributes.MACHINES);
     }
 
     // ------------------------------------------------------------------------

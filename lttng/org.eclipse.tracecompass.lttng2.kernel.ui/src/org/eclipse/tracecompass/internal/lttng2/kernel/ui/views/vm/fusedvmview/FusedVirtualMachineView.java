@@ -13,7 +13,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
 import org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview.FusedVMViewEntry.Type;
@@ -23,6 +23,7 @@ import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractStateSystemTimeGraphView;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphViewer;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
@@ -133,8 +134,10 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         };
 
         /* All traces are highlighted by default. */
+        FusedVMViewPresentationProvider provider = (FusedVMViewPresentationProvider) getPresentationProvider();
         for (ITmfTrace t : ((VirtualMachineExperiment) parentTrace).getTraces()) {
-            ((FusedVMViewPresentationProvider) getPresentationProvider()).getHighlightedMachines().put(t.getName(), true);
+            Machine m = new Machine(t.getName());
+            provider.getHighlightedMachines().put(t.getName(), m);
         }
 
         Map<Integer, FusedVMViewEntry> entryMap = new HashMap<>();
@@ -167,6 +170,20 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 addToEntryList(parentTrace, ssq, entryList);
             } else {
                 traceEntry.updateEndTime(endTime);
+            }
+
+            /* Highlight all vcpus of all guests by default */
+            List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*"); //$NON-NLS-1$
+            for (Integer machineQuark : machinesQuarks) {
+                String machineName = ssq.getAttributeName(machineQuark);
+                List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
+                for (Integer vcpu : vCpuquarks) {
+                    Machine machine = provider.getHighlightedMachines().get(machineName);
+                    if (machine != null) {
+                        machine.addCpu(ssq.getAttributeName(vcpu));
+                    }
+                }
+
             }
 
             List<Integer> cpuQuarks = ssq.getQuarks(Attributes.CPUS, "*"); //$NON-NLS-1$
