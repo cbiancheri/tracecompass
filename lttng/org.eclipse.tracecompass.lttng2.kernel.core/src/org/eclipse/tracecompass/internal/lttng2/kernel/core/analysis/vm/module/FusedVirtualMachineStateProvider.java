@@ -179,12 +179,11 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
 
         Integer cpu;
         Integer currentVCpu = -1;
-        Object cpuObj = TmfTraceUtils.resolveEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
-        if (cpuObj == null) {
+        cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+        if (cpu == null) {
             /* We couldn't find any CPU information, ignore this event */
             return;
         }
-        cpu = (Integer) cpuObj;
 
         /* Have the hypervisor models handle the event first */
         fModel.handleEvent(event);

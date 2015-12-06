@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
+import org.eclipse.jface.viewers.AbstractTreeViewer;
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTreeViewer;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
@@ -103,6 +104,16 @@ public class SelectMachineDialog extends TitleAreaDialog {
         fContentProvider = new TmfNavigatorContentProvider() {
 
             @Override
+            public Object getParent(Object element) {
+                if (element instanceof Machine) {
+                    return null;
+                } else if (element instanceof Processor) {
+                    return ((Processor) element).getMachine();
+                }
+                return null;
+            }
+
+            @Override
             public Object[] getElements(Object inputElement) {
                 return getChildren(inputElement);
             }
@@ -166,11 +177,31 @@ public class SelectMachineDialog extends TitleAreaDialog {
             @Override
             public void checkStateChanged(CheckStateChangedEvent event) {
                 Object element = event.getElement();
-                fCheckboxTreeViewer.setChecked(element, event.getChecked());
                 if (element instanceof Machine) {
-                    ((Machine) element).setHighlighted(event.getChecked());
+                    Machine m = (Machine) element;
+                    m.setHighlighted(event.getChecked());
+                    if (!event.getChecked()) {
+                        fCheckboxTreeViewer.setGrayed(element, false);
+                    }
+                    Boolean isExpanded = fCheckboxTreeViewer.getExpandedState(element);
+                    fCheckboxTreeViewer.expandToLevel(element, AbstractTreeViewer.ALL_LEVELS);
+                    fCheckboxTreeViewer.setSubtreeChecked(element, event.getChecked());
+                    if (!isExpanded) {
+                        fCheckboxTreeViewer.collapseToLevel(element, AbstractTreeViewer.ALL_LEVELS);
+                    }
+                    for (Processor cpu : m.getCpus()) {
+                        cpu.setHighlighted(event.getChecked());
+                    }
                 } else if (element instanceof Processor) {
-                    ((Processor) element).setHighlighted(event.getChecked());
+                    Boolean checked = event.getChecked();
+                    ((Processor) element).setHighlighted(checked);
+                    Object ancestor = fContentProvider.getParent(element);
+                    if (ancestor instanceof Machine) {
+                        Machine m = (Machine) ancestor;
+                        fCheckboxTreeViewer.setGrayed(m, m.isGrayed());
+                        fCheckboxTreeViewer.setChecked(m, m.isOneCpuHighlighted());
+                        m.setHighlighted(m.isOneCpuHighlighted());
+                    }
                 }
             }
         });
@@ -182,6 +213,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
             for (Processor cpu : cpus) {
                 fCheckboxTreeViewer.setChecked(cpu, cpu.isHighlighted());
             }
+            fCheckboxTreeViewer.setGrayed(m, m.isGrayed());
         }
         fCheckboxTreeViewer.collapseAll();
 

@@ -543,11 +543,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     value = interval.getStateValue();
                     cpu = value.unboxInt();
                 } else {
-                    if (event instanceof TimeEvent) {
-                        cpu = ((TimeEvent) event).getValue();
-                    } else {
-                        return false;
-                    }
+                    cpu = Integer.parseInt(ss.getAttributeName(cpuQuark));
                 }
                 Machine machine = map.get(machineName);
                 if (machine != null) {

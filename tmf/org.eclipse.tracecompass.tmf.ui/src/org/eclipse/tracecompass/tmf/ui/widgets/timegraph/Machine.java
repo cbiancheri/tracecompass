@@ -23,7 +23,7 @@ public class Machine {
     }
 
     public void addCpu(String cpu) {
-        cpus.add(new Processor(cpu));
+        cpus.add(new Processor(cpu, this));
     }
 
     public Boolean isHighlighted() {
@@ -45,6 +45,36 @@ public class Machine {
             }
         }
         return false;
+    }
+
+    public Boolean areAllCpusHighlighted() {
+        Boolean res = true;
+        for (Processor p : getCpus()) {
+            res &= p.isHighlighted();
+        }
+        return res;
+    }
+
+    public Boolean areAllCpusNotHighlighted(){
+        Boolean res = true;
+        for (Processor p : getCpus()) {
+            res &= !p.isHighlighted();
+        }
+        return res;
+    }
+
+    public Boolean isOneCpuHighlighted(){
+        Boolean res = false;
+        for (Processor p : getCpus()) {
+            if (p.isHighlighted()) {
+                return true;
+            }
+        }
+        return res;
+    }
+
+    public Boolean isGrayed(){
+        return !areAllCpusHighlighted() && isOneCpuHighlighted();
     }
 
     @Override

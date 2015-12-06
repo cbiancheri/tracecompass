@@ -9,10 +9,12 @@ public class Processor {
 
     private String n;
     private Boolean highlighted;
+    private Machine machine;
 
-    public Processor(String p){
+    public Processor(String p, Machine m){
         n = p;
         highlighted = true;
+        machine = m;
     }
 
     @Override
@@ -26,5 +28,9 @@ public class Processor {
 
     public void setHighlighted(Boolean b) {
         highlighted = b;
+    }
+
+    public Machine getMachine() {
+        return machine;
     }
 }
