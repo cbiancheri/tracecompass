@@ -27,6 +27,7 @@ import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
@@ -48,7 +49,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Color fColorWhite;
     private Color fColorGray;
     private Integer fAverageCharWidth;
-    // private Map<String, Boolean> highlightedMachines;
 
     private enum State {
         IDLE_HIGHLIGHT(new RGB(200, 200, 200)),
@@ -117,7 +117,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
                 if (state != null) {
                     /* Add here you condition to highlight */
-                    if (isMachineSelected(event)) {
+                    if (isMachineSelected(event) && isCpuSelected(event)) {
                         return State.highLightState(state);
                     }
                     return state;
@@ -482,7 +482,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 //    }
 
     private boolean isMachineSelected(ITimeEvent event) {
-        Map<String, Boolean> map = getHighlightedMachines();
+        Map<String, Machine> map = getHighlightedMachines();
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
         ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
@@ -505,11 +505,60 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             /* Ignored */
         }
 
-        Boolean res = map.get(machineName);
-        if (res == null) {
+        Machine machine = map.get(machineName);
+        if (machine == null) {
             return false;
         }
+        Boolean res = machine.isHighlighted();
         return res;
     }
 
+    private boolean isCpuSelected(ITimeEvent event) {
+        Map<String, Machine> map = getHighlightedMachines();
+        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
+        ITmfTrace trace = entry.getTrace();
+        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+        int cpuQuark = entry.getQuark();
+        long time = event.getTime();
+        if (ss == null) {
+            return false;
+        }
+
+        try {
+            ITmfStateInterval interval;
+            int machineNameQuark = ss.getQuarkRelative(cpuQuark, Attributes.MACHINE_NAME);
+            interval = ss.querySingleState(time, machineNameQuark);
+            ITmfStateValue value = interval.getStateValue();
+            String machineName = value.unboxStr();
+
+            int conditionQuark = ss.getQuarkRelative(cpuQuark, Attributes.CONDITION);
+            interval = ss.querySingleState(time, conditionQuark);
+            if (!interval.getStateValue().isNull()) {
+                ITmfStateValue valueInVM = interval.getStateValue();
+                int cpu;
+                int inVM = valueInVM.unboxInt();
+                if (inVM == StateValues.CONDITION_IN_VM) {
+                    int machineVCpuQuark = ss.getQuarkRelative(cpuQuark, Attributes.VIRTUAL_CPU);
+                    interval = ss.querySingleState(time, machineVCpuQuark);
+                    value = interval.getStateValue();
+                    cpu = value.unboxInt();
+                } else {
+                    if (event instanceof TimeEvent) {
+                        cpu = ((TimeEvent) event).getValue();
+                    } else {
+                        return false;
+                    }
+                }
+                Machine machine = map.get(machineName);
+                if (machine != null) {
+                    return machine.isCpuHighlighted(Integer.toString(cpu));
+                }
+            }
+        } catch (AttributeNotFoundException e) {
+            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+        } catch (StateSystemDisposedException e) {
+            /* Ignored */
+        }
+        return false;
+    }
 }

@@ -1,5 +1,7 @@
 package org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,12 +21,12 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
-import org.eclipse.swt.widgets.TreeItem;
-import org.eclipse.tracecompass.common.core.NonNullUtils;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorContentProvider;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorLabelProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Processor;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
 import org.eclipse.ui.dialogs.FilteredTree;
 import org.eclipse.ui.dialogs.PatternFilter;
@@ -43,7 +45,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
     // LocalResourceManager(JFaceResources.getResources());
 
     /**
-     * Open the time graph legend window
+     * Open the select machines window
      *
      * @param parent
      *            The parent shell
@@ -85,7 +87,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
     private void createMachinesGroup(Composite composite) {
 
         TimeGraphPresentationProvider timeGraphPresentationProvider = (TimeGraphPresentationProvider) provider;
-        Map<String, Boolean> machines = timeGraphPresentationProvider.getHighlightedMachines();
+        Map<String, Machine> machines = timeGraphPresentationProvider.getHighlightedMachines();
 
         new FilteredTree(composite, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER, new PatternFilter(), true) {
             @Override
@@ -95,7 +97,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
         };
     }
 
-    private TreeViewer doCreateTreeViewer(Composite parent, Map<String, Boolean> machines) {
+    private TreeViewer doCreateTreeViewer(Composite parent, Map<String, Machine> machines) {
         fCheckboxTreeViewer = new CheckboxTreeViewer(parent, SWT.BORDER);
 
         fContentProvider = new TmfNavigatorContentProvider() {
@@ -107,15 +109,29 @@ public class SelectMachineDialog extends TitleAreaDialog {
 
             @Override
             public synchronized Object[] getChildren(Object parentElement) {
-                if (parentElement instanceof Set) {
-                    return ((Set<String>) parentElement).toArray();
+                if (parentElement instanceof List) {
+                    return ((List<?>) parentElement).toArray();
+                } else if (parentElement instanceof Machine) {
+                    Machine m = (Machine) parentElement;
+                    return m.getCpus().toArray();
                 }
                 return null;
             }
 
+            @Override
+            public boolean hasChildren(Object element) {
+                Object[] children = getChildren(element);
+                return children != null && children.length > 0;
+            }
+
         };
         fCheckboxTreeViewer.setContentProvider(fContentProvider);
-        fLabelProvider = new TmfNavigatorLabelProvider();
+        fLabelProvider = new TmfNavigatorLabelProvider() {
+            @Override
+            public String getText(Object arg0) {
+                return arg0.toString();
+            }
+        };
         fCheckboxTreeViewer.setLabelProvider(fLabelProvider);
         fCheckboxTreeViewer.setSorter(new ViewerSorter());
 
@@ -142,7 +158,8 @@ public class SelectMachineDialog extends TitleAreaDialog {
         });
 
         // Populate the list with the machines' names
-        fCheckboxTreeViewer.setInput(machines.keySet());
+        List<Machine> listMachines = new ArrayList<>(machines.values());
+        fCheckboxTreeViewer.setInput(listMachines);
         column.getColumn().pack();
 
         fCheckboxTreeViewer.addCheckStateListener(new ICheckStateListener() {
@@ -150,14 +167,24 @@ public class SelectMachineDialog extends TitleAreaDialog {
             public void checkStateChanged(CheckStateChangedEvent event) {
                 Object element = event.getElement();
                 fCheckboxTreeViewer.setChecked(element, event.getChecked());
-                machines.put((String) element, event.getChecked());
+                if (element instanceof Machine) {
+                    ((Machine) element).setHighlighted(event.getChecked());
+                } else if (element instanceof Processor) {
+                    ((Processor) element).setHighlighted(event.getChecked());
+                }
             }
         });
 
-        // Checks the machines already highlighted
-        for (TreeItem treeItem : fCheckboxTreeViewer.getTree().getItems()) {
-            treeItem.setChecked(NonNullUtils.checkNotNull(machines.get(treeItem.getText())));
+        fCheckboxTreeViewer.expandAll();
+        for (Machine m : listMachines) {
+            fCheckboxTreeViewer.setChecked(m, m.isHighlighted());
+            Set<Processor> cpus = m.getCpus();
+            for (Processor cpu : cpus) {
+                fCheckboxTreeViewer.setChecked(cpu, cpu.isHighlighted());
+            }
         }
+        fCheckboxTreeViewer.collapseAll();
+
         return fCheckboxTreeViewer;
     }
 

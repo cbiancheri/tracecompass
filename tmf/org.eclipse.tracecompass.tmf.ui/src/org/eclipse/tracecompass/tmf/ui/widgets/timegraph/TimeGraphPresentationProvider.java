@@ -37,7 +37,7 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
 
     private ITmfTimeGraphDrawingHelper fDrawingHelper;
     private final String fStateTypeName;
-    private Map<String, Boolean> highlightedMachines = new HashMap<>();
+    private Map<String, Machine> highlightedMachines = new HashMap<>();
 
     // The list of listeners for graph color changes
     private final List<ITimeGraphColorListener> fListeners = new ArrayList<>();
@@ -167,8 +167,7 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
     /**
      * @since 2.0
      */
-    public Map<String, Boolean> getHighlightedMachines() {
+    public Map<String, Machine> getHighlightedMachines() {
         return highlightedMachines;
     }
-
 }

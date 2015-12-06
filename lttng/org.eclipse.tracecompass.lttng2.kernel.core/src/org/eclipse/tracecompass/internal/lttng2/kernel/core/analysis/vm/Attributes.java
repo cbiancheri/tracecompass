@@ -19,6 +19,7 @@ public interface Attributes {
     String CPUS = "CPUs";
     String THREADS = "Threads";
     String RESOURCES = "Resources";
+    String MACHINES = "Machines";
 
     /* Sub-attributes of the CPU nodes */
     String CURRENT_THREAD = "Current_thread";
