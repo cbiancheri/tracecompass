@@ -210,7 +210,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     }
 
                 } catch (AttributeNotFoundException e) {
-                    Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//                    Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
                 } catch (StateSystemDisposedException e) {
                     /* Ignored */
                 }

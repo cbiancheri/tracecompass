@@ -170,4 +170,11 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
     public Map<String, Machine> getHighlightedMachines() {
         return highlightedMachines;
     }
+
+    /**
+     * @since 2.0
+     */
+    public void destroyHightlightedMachines() {
+        highlightedMachines = new HashMap<>();
+    }
 }
