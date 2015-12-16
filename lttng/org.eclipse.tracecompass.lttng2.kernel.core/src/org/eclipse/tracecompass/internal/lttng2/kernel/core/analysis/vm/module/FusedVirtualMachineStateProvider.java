@@ -233,7 +233,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
 
                 if (host.isGuest()) {
                     int quarkMachines = getNodeMachines(ss);
-                    ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                    ss.getQuarkRelativeAndAdd(quarkMachines, traceName, currentVCpu.toString());
                 }
             } else {
                 int quarkMachines = getNodeMachines(ss);

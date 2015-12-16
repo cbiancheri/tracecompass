@@ -135,9 +135,25 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
 
         /* All traces are highlighted by default. */
         FusedVMViewPresentationProvider provider = (FusedVMViewPresentationProvider) getPresentationProvider();
+        /* Remove highlighted machines from other analysis. */
+        provider.destroyHightlightedMachines();
         for (ITmfTrace t : ((VirtualMachineExperiment) parentTrace).getTraces()) {
             Machine m = new Machine(t.getName());
             provider.getHighlightedMachines().put(t.getName(), m);
+        }
+
+        /* Highlight all vcpus of all guests by default */
+        List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*"); //$NON-NLS-1$
+        for (Integer machineQuark : machinesQuarks) {
+            String machineName = ssq.getAttributeName(machineQuark);
+            List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
+            Machine machine = provider.getHighlightedMachines().get(machineName);
+            if (machine != null) {
+                for (Integer vcpu : vCpuquarks) {
+                    machine.addCpu(ssq.getAttributeName(vcpu));
+                }
+            }
+
         }
 
         Map<Integer, FusedVMViewEntry> entryMap = new HashMap<>();
@@ -170,20 +186,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 addToEntryList(parentTrace, ssq, entryList);
             } else {
                 traceEntry.updateEndTime(endTime);
-            }
-
-            /* Highlight all vcpus of all guests by default */
-            List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*"); //$NON-NLS-1$
-            for (Integer machineQuark : machinesQuarks) {
-                String machineName = ssq.getAttributeName(machineQuark);
-                List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
-                for (Integer vcpu : vCpuquarks) {
-                    Machine machine = provider.getHighlightedMachines().get(machineName);
-                    if (machine != null) {
-                        machine.addCpu(ssq.getAttributeName(vcpu));
-                    }
-                }
-
             }
 
             List<Integer> cpuQuarks = ssq.getQuarks(Attributes.CPUS, "*"); //$NON-NLS-1$
