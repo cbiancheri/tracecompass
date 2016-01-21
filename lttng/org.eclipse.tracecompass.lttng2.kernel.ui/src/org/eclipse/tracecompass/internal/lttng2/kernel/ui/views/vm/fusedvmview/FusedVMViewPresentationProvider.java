@@ -1,8 +1,10 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -49,23 +51,80 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Color fColorWhite;
     private Color fColorGray;
     private Integer fAverageCharWidth;
+    private volatile Object selectedFusedVMViewEntry;
+    private volatile Object selectedControlFLowViewEntry;
+    private String selectedMachine;
+    private Thread selectedThread;
+    private int selectedCpu;
+    private Set<Thread> highlightedTreads = new HashSet<>();
+    private static int ponderation = 3;
+
+    private class Thread {
+        private String machineName;
+        private int threadID;
+        private String threadName;
+
+        public Thread(String m, int t) {
+            machineName = m;
+            threadID = t;
+            threadName = null;
+        }
+
+        public Thread(String m, int t, String n) {
+            machineName = m;
+            threadID = t;
+            threadName = n;
+        }
+
+        public String getMachineName() {
+            return machineName;
+        }
+
+        public int getThreadID() {
+            return threadID;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof Thread) {
+                Thread t = (Thread) o;
+                return (t.getMachineName().equals(machineName)) && (t.getThreadID() == threadID);
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 1;
+            hash = hash * 31 + machineName.hashCode();
+            hash = hash * 31 + threadID;
+            return hash;
+        }
+
+        /**
+         * @return the threadName
+         */
+        public String getThreadName() {
+            return threadName;
+        }
+    }
 
     private enum State {
-        IDLE_HIGHLIGHT(new RGB(200, 200, 200)),
-        IDLE(new RGB((200 + 255) / 2, (200 + 255) / 2, (200 + 255) / 2)),
-        USERMODE_HIGHLIGHT(new RGB(0, 200, 0)),
-        USERMODE(new RGB((0 + 255) / 2, (200 + 255) / 2, (0 + 255) / 2)),
-        SYSCALL_HIGHLIGHT(new RGB(0, 0, 200)),
-        SYSCALL(new RGB((0 + 255) / 2, (0 + 255) / 2, (200 + 255) / 2)),
-        IRQ_HIGHLIGHT(new RGB(200, 0, 100)),
-        IRQ(new RGB((200 + 255) / 2, (0 + 255) / 2, (100 + 255) / 2)),
-        SOFT_IRQ_HIGHLIGHT(new RGB(200, 150, 100)),
-        SOFT_IRQ(new RGB((200 + 255) / 2, (150 + 255) / 2, (100 + 255) / 2)),
+        IDLE(new RGB(200, 200, 200)),
+        IDLE_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1))),
+        USERMODE(new RGB(0, 200, 0)),
+        USERMODE_DIM(new RGB((0 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1))),
+        SYSCALL(new RGB(0, 0, 200)),
+        SYSCALL_DIM(new RGB((0 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1))),
+        IRQ(new RGB(200, 0, 100)),
+        IRQ_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1), (100 + ponderation * 255) / (ponderation + 1))),
+        SOFT_IRQ(new RGB(200, 150, 100)),
+        SOFT_IRQ_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (150 + ponderation * 255) / (ponderation + 1), (100 + ponderation * 255) / (ponderation + 1))),
         IRQ_ACTIVE(new RGB(200, 0, 100)),
         SOFT_IRQ_RAISED(new RGB(200, 200, 0)),
         SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)),
-        IN_VM_HIGHLIGHT(new RGB(200, 0, 200)),
-        IN_VM(new RGB((200 + 255) / 2, 0, (200 + 255) / 2));
+        IN_VM(new RGB(200, 0, 200)),
+        IN_VM_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), 0, (200 + ponderation * 255) / (ponderation + 1)));
 
         public final RGB rgb;
 
@@ -92,10 +151,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     private State getEventState(TimeEvent event) {
-        /*
-         * TODO: Find a way to dynamically select the machine we want to
-         * highlight.
-         */
         if (event.hasValue()) {
             FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
             int value = event.getValue();
@@ -103,21 +158,21 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             if (entry.getType() == Type.CPU) {
                 State state = null;
                 if (value == StateValues.CPU_STATUS_IDLE) {
-                    state = State.IDLE;
-                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE) {
-                    state = State.USERMODE;
-                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL) {
-                    state = State.SYSCALL;
+                    state = State.IDLE_DIM;
+                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE || value == StateValues.CPU_STATUS_SWITCH_TO_USERMODE) {
+                    state = State.USERMODE_DIM;
+                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL || value == StateValues.CPU_STATUS_SWITCH_TO_SYSCALL) {
+                    state = State.SYSCALL_DIM;
                 } else if (value == StateValues.CPU_STATUS_IRQ) {
-                    state = State.IRQ;
+                    state = State.IRQ_DIM;
                 } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
-                    state = State.SOFT_IRQ;
+                    state = State.SOFT_IRQ_DIM;
                 } else if (value == StateValues.CPU_STATUS_IN_VM) {
-                    state = State.IN_VM;
+                    state = State.IN_VM_DIM;
                 }
                 if (state != null) {
-                    /* Add here you condition to highlight */
-                    if (isMachineSelected(event) && isCpuSelected(event)) {
+                    /* Add here your condition to highlight */
+                    if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
                         return State.highLightState(state);
                     }
                     return state;
@@ -210,7 +265,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     }
 
                 } catch (AttributeNotFoundException e) {
-//                    Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                    // Activator.getDefault().logError("Error in
+                    // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
                 } catch (StateSystemDisposedException e) {
                     /* Ignored */
                 }
@@ -452,36 +508,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     // Functions used to decide if the area is highlighted or not.
     //
 
-
-//    private static boolean isEventFromVM(ITimeEvent event) {
-//        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
-//        ITmfTrace trace = entry.getTrace();
-//        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
-//        int cpuQuark = entry.getQuark();
-//        long time = event.getTime();
-//        if (ss == null) {
-//            return false;
-//        }
-//        boolean result = false;
-//        int conditionQuark;
-//        try {
-//            conditionQuark = ss.getQuarkRelative(cpuQuark, Attributes.CONDITION);
-//            ITmfStateInterval interval;
-//            interval = ss.querySingleState(time, conditionQuark);
-//            if (!interval.getStateValue().isNull()) {
-//                ITmfStateValue valueInVM = interval.getStateValue();
-//                int inVM = valueInVM.unboxInt();
-//                result |= (inVM == StateValues.CONDITION_IN_VM);
-//            }
-//        } catch (AttributeNotFoundException e) {
-//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
-//        } catch (StateSystemDisposedException e) {
-//            /* Ignored */
-//        }
-//        return result;
-//    }
-
-    private boolean isMachineSelected(ITimeEvent event) {
+    /**
+     * Says for a specific event if the related machine is highlighted
+     */
+    private boolean isMachineHighlighted(ITimeEvent event) {
         Map<String, Machine> map = getHighlightedMachines();
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
@@ -513,7 +543,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         return res;
     }
 
-    private boolean isCpuSelected(ITimeEvent event) {
+    /**
+     * Says for a specific event if the related cpu is highlighted
+     */
+    private boolean isCpuHighlighted(ITimeEvent event) {
         Map<String, Machine> map = getHighlightedMachines();
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
@@ -557,4 +590,190 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         }
         return false;
     }
+
+    /**
+     * Says for a specific event if the related process is highlighted
+     */
+    private boolean isProcessHighlighted(ITimeEvent event) {
+        if (highlightedTreads.isEmpty()) {
+            return false;
+        }
+
+        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
+        ITmfTrace trace = entry.getTrace();
+        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+        int cpuQuark = entry.getQuark();
+        long time = event.getTime();
+        if (ss == null) {
+            return false;
+        }
+        try {
+            ITmfStateInterval interval;
+            int machineNameQuark = ss.getQuarkRelative(cpuQuark, Attributes.MACHINE_NAME);
+            int currentThreadQuark = ss.getQuarkRelative(cpuQuark, Attributes.CURRENT_THREAD);
+            interval = ss.querySingleState(time, machineNameQuark);
+            ITmfStateValue value = interval.getStateValue();
+            String machineName = value.unboxStr();
+
+            interval = ss.querySingleState(time, currentThreadQuark);
+            value = interval.getStateValue();
+            int currentThreadID = value.unboxInt();
+
+            return highlightedTreads.contains(new Thread(machineName, currentThreadID));
+
+        } catch (AttributeNotFoundException e) {
+            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+        } catch (StateSystemDisposedException e) {
+            /* Ignored */
+        }
+
+        return false;
+    }
+
+    //
+    // Getters, setter, and some short useful methods
+    //
+
+    /**
+     * Sets the selected entry in FusedVM View
+     *
+     * @param o
+     *            the FusedVMView entry selected
+     */
+    public void setSelectedFusedVMViewEntry(Object o) {
+        selectedFusedVMViewEntry = o;
+    }
+
+    /**
+     * Gets the selected entry in FusedVM View
+     *
+     * @return the selectedFusedVMViewEntry
+     */
+    public Object getSelectedFusedVMViewEntry() {
+        return selectedFusedVMViewEntry;
+    }
+
+    /**
+     * Sets the selected entry in Control Flow View
+     *
+     * @param o
+     *            the ControlFLowView entry selected
+     */
+    public void setSelectedControlFlowViewEntry(Object o) {
+        selectedControlFLowViewEntry = o;
+    }
+
+    /**
+     * Gets the selected entry in Control Flow View
+     *
+     * @return the selectedControlFLowViewEntry
+     */
+    public Object getSelectedControlFlowViewEntry() {
+        return selectedControlFLowViewEntry;
+    }
+
+    /**
+     * Gets the selected machine
+     *
+     * @return the selectedMachine
+     */
+    public String getSelectedMachine() {
+        return selectedMachine;
+    }
+
+    /**
+     * Sets the selected machine
+     *
+     * @param machine
+     *            the selectedMachine to set
+     */
+    public void setSelectedMachine(String machine) {
+        selectedMachine = machine;
+    }
+
+    /**
+     * Gets the selected cpu
+     *
+     * @return the selectedCpu
+     */
+    public int getSelectedCpu() {
+        return selectedCpu;
+    }
+
+    /**
+     * Sets the selected cpu
+     *
+     * @param cpu
+     *            the selectedCpu to set
+     */
+    public void setSelectedCpu(int cpu) {
+        selectedCpu = cpu;
+    }
+
+    /**
+     * Gets the selected thread ID
+     *
+     * @return the selectedThreadID
+     */
+    public int getSelectedThreadID() {
+        return selectedThread.getThreadID();
+    }
+
+    /**
+     * Gets the selected thread name
+     *
+     * @return the selectedThread name;
+     */
+    public String getSelectedThreadName() {
+        return selectedThread.getThreadName();
+    }
+
+    /**
+     * @param machineName
+     *            the machine name
+     * @param threadID
+     *            the tid of the thread
+     * @param threadName
+     *            the name of the thread
+     *
+     */
+    public void setSelectedThread(String machineName, int threadID, String threadName) {
+        selectedThread = new Thread(machineName, threadID, threadName);
+    }
+
+    /**
+     * Gets the highlighted threads
+     *
+     * @return the highlightedTreads
+     */
+    public Set<Thread> getHighlightedTreads() {
+        return highlightedTreads;
+    }
+
+    /**
+     * @param machineName
+     *            the machine name
+     * @param tid
+     *            the tid
+     * @return true if the thread is contained in the list of highlighted
+     *         threads
+     */
+    public boolean isThreadSelected(String machineName, int tid) {
+        return highlightedTreads.contains(new Thread(machineName, tid));
+    }
+
+    /**
+     * Adds the selected thread to the list of highlighted threads
+     */
+    public void addHighlightedThread() {
+        highlightedTreads.add(selectedThread);
+    }
+
+    /**
+     * Removes the selected thread of the list of highlighted threads
+     */
+    public void removeHighlightedThread() {
+        highlightedTreads.remove(selectedThread);
+    }
+
 }

@@ -165,6 +165,7 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
     }
 
     /**
+     * @return the highlighted machines
      * @since 2.0
      */
     public Map<String, Machine> getHighlightedMachines() {
@@ -177,4 +178,5 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
     public void destroyHightlightedMachines() {
         highlightedMachines = new HashMap<>();
     }
+
 }

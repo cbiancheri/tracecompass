@@ -30,8 +30,28 @@ public class Machine {
         return highlighted;
     }
 
+    public void setHighlightedWithAllCpu(Boolean b) {
+        highlighted = b;
+        for (Processor p : cpus) {
+            p.setHighlighted(b);
+        }
+    }
+
     public void setHighlighted(Boolean b) {
         highlighted = b;
+    }
+
+    public void setHighlightedCpu(int cpu, Boolean b) {
+        for (Processor p : getCpus()) {
+            if (Integer.parseInt(p.getNumber()) == cpu) {
+                p.setHighlighted(b);
+                if (b) {
+                    setHighlighted(b);
+                } else {
+                    setHighlighted(isOneCpuHighlighted());
+                }
+            }
+        }
     }
 
     public Set<Processor> getCpus() {
@@ -41,6 +61,15 @@ public class Machine {
     public Boolean isCpuHighlighted(String p) {
         for(Processor proc : cpus) {
             if (p.equals(proc.toString())) {
+                return proc.isHighlighted();
+            }
+        }
+        return false;
+    }
+
+    public Boolean isCpuHighlighted(int p) {
+        for(Processor proc : cpus) {
+            if (p == Integer.parseInt(proc.toString())) {
                 return proc.isHighlighted();
             }
         }

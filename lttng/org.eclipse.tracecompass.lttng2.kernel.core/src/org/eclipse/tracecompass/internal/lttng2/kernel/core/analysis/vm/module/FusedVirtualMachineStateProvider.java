@@ -177,9 +177,9 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
 
         String traceName = host.getTraceName();
 
-        Integer cpu;
         Integer currentVCpu = -1;
-        cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+        @SuppressWarnings("null")
+        Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
         if (cpu == null) {
             /* We couldn't find any CPU information, ignore this event */
             return;
@@ -429,16 +429,31 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                      * Check if the entering process is in kernel or user mode
                      */
                     quark = ss.getQuarkRelativeAndAdd(newCurrentThreadNode, Attributes.SYSTEM_CALL);
+                    ITmfStateValue splitValue;
                     if (ss.queryOngoingState(quark).isNull()) {
                         value = StateValues.CPU_STATUS_RUN_USERMODE_VALUE;
+                        splitValue = StateValues.CPU_STATUS_SWITCH_TO_USERMODE_VALUE;
                     } else {
                         value = StateValues.CPU_STATUS_RUN_SYSCALL_VALUE;
+                        splitValue = StateValues.CPU_STATUS_SWITCH_TO_SYSCALL_VALUE;
                     }
+                    quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
+                    /*
+                     * Add a state to split two consecutive same states.
+                     */
+                    /**
+                     * TODO: find a better way to do that, it's the same problem
+                     * related in the others TODO
+                     */
+                    ss.modifyAttribute(ts, splitValue, quark);
+                    ss.modifyAttribute(ts + 1, value, quark);
                 } else {
                     value = StateValues.CPU_STATUS_IDLE_VALUE;
+
+                    quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
+
+                    ss.modifyAttribute(ts, value, quark);
                 }
-                quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
-                ss.modifyAttribute(ts, value, quark);
             }
                 break;
 
@@ -689,7 +704,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                     ss.modifyAttribute(ts, value, machineNameQuark);
 
                     /*
-                     * When the state of the vm and the host are the same the
+                     * When the states of the vm and the host are the same the
                      * transition is not detected by the view so we add a false
                      * state that lasts 1 ns to make the transition visible.
                      * TODO: Find a better way to handle this problem.
@@ -741,7 +756,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                     }
 
                     /*
-                     * When the state of the vm and the host are the same the
+                     * When the states of the vm and the host are the same the
                      * transition is not detected by the view so we add a false
                      * state that lasts 1 ns to make the transition visible.
                      * TODO: Find a better way to handle this problem.
@@ -889,20 +904,19 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     private @Nullable HostThread getCurrentHostThread(ITmfEvent event, long ts) {
         /* Get the LTTng kernel analysis for the host */
         String hostId = event.getTrace().getHostId();
+        @SuppressWarnings("null")
         KernelAnalysisModule module = TmfExperimentUtils.getAnalysisModuleOfClassForHost(getTrace(), hostId, KernelAnalysisModule.class);
         if (module == null) {
             return null;
         }
 
         /* Get the CPU the event is running on */
-        Integer cpu;
-        Object cpuObj = TmfTraceUtils.resolveEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
-        if (cpuObj == null) {
+        @SuppressWarnings("null")
+        Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+        if (cpu == null) {
             /* We couldn't find any CPU information, ignore this event */
             return null;
         }
-        cpu = (Integer) cpuObj;
-
         Integer currentTid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
         if (currentTid == null) {
             return null;

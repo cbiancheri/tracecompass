@@ -2613,7 +2613,7 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     }
 
     /**
-     * @return
+     * @return the TimeGraphProvider
      * @since 2.0
      */
     public ITimeGraphPresentationProvider getTimeGraphProvider() {
@@ -2623,7 +2623,7 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     /**
      * Get the select machine action.
      *
-     * @return
+     * @return the select machine action
      *
      * @since 2.0
      */
