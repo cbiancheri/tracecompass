@@ -10,26 +10,50 @@ import java.util.Map;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
+import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowView;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
 import org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview.FusedVMViewEntry.Type;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystem;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
+import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
 import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
+import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractStateSystemTimeGraphView;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider2;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphSelectionListener;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphTimeListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphSelectionEvent;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphTimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphViewer;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils.Resolution;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils.TimeFormat;
+import org.eclipse.ui.ISelectionListener;
+import org.eclipse.ui.IViewPart;
+import org.eclipse.ui.IWorkbench;
+import org.eclipse.ui.IWorkbenchPage;
+import org.eclipse.ui.IWorkbenchPart;
+import org.eclipse.ui.IWorkbenchWindow;
+import org.eclipse.ui.PlatformUI;
 
 /**
  * @author Cedric Biancheri
@@ -47,6 +71,180 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     // Timeout between updates in the build thread in ms
     private static final long BUILD_UPDATE_TIMEOUT = 500;
 
+    /** Button to select a machine to highlight */
+    private final Action fHighlightMachine = new Action(Messages.FusedVMView_ButtonMachineSelected, IAction.AS_CHECK_BOX) {
+        @Override
+        public void run() {
+            FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+            Map<String, Machine> highlightedMachines = presentationProvider.getHighlightedMachines();
+            Machine machine = highlightedMachines.get(presentationProvider.getSelectedMachine());
+            if (machine == null) {
+                setChecked(!isChecked());
+                return;
+            }
+            machine.setHighlightedWithAllCpu(isChecked());
+            fHighlightCPU.setChecked(isChecked());
+            refresh();
+        }
+    };
+
+    /** Button to select a CPU to highlight */
+    private final Action fHighlightCPU = new Action(Messages.FusedVMView_ButtonCPUSelected, IAction.AS_CHECK_BOX) {
+        @Override
+        public void run() {
+            FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+            Map<String, Machine> highlightedMachines = presentationProvider.getHighlightedMachines();
+            Machine machine = highlightedMachines.get(presentationProvider.getSelectedMachine());
+            if (machine == null) {
+                setChecked(!isChecked());
+                return;
+            }
+            machine.setHighlightedCpu(presentationProvider.getSelectedCpu(), isChecked());
+            fHighlightMachine.setChecked(machine.isOneCpuHighlighted());
+            refresh();
+        }
+    };
+
+    /** Button to select a process to highlight */
+    private final Action fHighlightProcess = new Action(Messages.FusedVMView_ButtonProcessSelected, IAction.AS_CHECK_BOX) {
+        @Override
+        public void run() {
+            FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+            if (isChecked()) {
+                presentationProvider.addHighlightedThread();
+            } else {
+                presentationProvider.removeHighlightedThread();
+            }
+            refresh();
+        }
+    };
+
+    /** The beginning of the selected time */
+    private long beginSelectedTime;
+
+    /** The end of the selected time */
+    private long endSelectedTime;
+
+    /**
+     * Listener that handles a change in the selected time in the FusedVM View
+     */
+    private final ITimeGraphTimeListener fTimeListenerFusedVMView = new ITimeGraphTimeListener() {
+
+        @Override
+        public void timeSelected(TimeGraphTimeEvent event) {
+            setBeginSelectedTime(event.getBeginTime());
+            setEndSelectedTime(event.getEndTime());
+            long begin = getBeginSelectedTime();
+            long end = getEndSelectedTime();
+            if (begin == end) {
+                FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+                Object o = presentationProvider.getSelectedFusedVMViewEntry();
+                if (o == null) {
+                    return;
+                }
+                if (!(o instanceof FusedVMViewEntry)) {
+                    return;
+                }
+                FusedVMViewEntry entry = (FusedVMViewEntry) o;
+                int cpuQuark = entry.getQuark();
+                ITmfTrace trace = getTrace();
+                if (trace == null) {
+                    return;
+                }
+                final ITmfStateSystem ssq = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+                if (ssq == null) {
+                    return;
+                }
+                String machineName = null;
+                try {
+                    ITmfStateInterval interval;
+                    int machineNameQuark = ssq.getQuarkRelative(cpuQuark, Attributes.MACHINE_NAME);
+                    interval = ssq.querySingleState(begin, machineNameQuark);
+                    ITmfStateValue value = interval.getStateValue();
+                    machineName = value.unboxStr();
+                    presentationProvider.setSelectedMachine(machineName);
+
+                    int threadQuark = ssq.getQuarkRelative(cpuQuark, Attributes.CURRENT_THREAD);
+                    interval = ssq.querySingleState(begin, threadQuark);
+                    value = interval.getStateValue();
+                    int threadID = value.unboxInt();
+
+                    int execNameQuark = ssq.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(threadID), Attributes.EXEC_NAME);
+                    interval = ssq.querySingleState(begin, execNameQuark);
+                    value = interval.getStateValue();
+                    String threadName = value.unboxStr();
+
+                    presentationProvider.setSelectedThread(machineName, threadID, threadName);
+
+                    int conditionQuark = ssq.getQuarkRelative(cpuQuark, Attributes.CONDITION);
+                    interval = ssq.querySingleState(begin, conditionQuark);
+                    value = interval.getStateValue();
+                    int condition = value.unboxInt();
+                    if (condition == StateValues.CONDITION_IN_VM) {
+                        int machineVCpuQuark = ssq.getQuarkRelative(cpuQuark, Attributes.VIRTUAL_CPU);
+                        interval = ssq.querySingleState(begin, machineVCpuQuark);
+                        value = interval.getStateValue();
+                        int vcpu = value.unboxInt();
+                        presentationProvider.setSelectedCpu(vcpu);
+                    } else {
+                        presentationProvider.setSelectedCpu(Integer.parseInt(ssq.getAttributeName(cpuQuark)));
+                    }
+
+                } catch (AttributeNotFoundException e) {
+                    // Activator.getDefault().logError("Error in
+                    // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                } catch (StateSystemDisposedException e) {
+                    /* Ignored */
+                }
+
+                updateButtonsSelection();
+                updateToolTipTexts();
+
+            } else {
+                printInformations();
+            }
+        }
+    };
+
+    /** Listener that handles a click on an entry in the FusedVM View */
+    private final ITimeGraphSelectionListener fSelListenerFusedVMView = new ITimeGraphSelectionListener() {
+
+        @Override
+        public void selectionChanged(TimeGraphSelectionEvent event) {
+            ITimeGraphEntry entry = event.getSelection();
+            if (entry instanceof FusedVMViewEntry) {
+                FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+                presentationProvider.setSelectedFusedVMViewEntry(entry);
+            }
+
+        }
+    };
+
+    /** Listener that handles a click on an entry in the Control Flow View */
+    private final ISelectionListener fSelListenerControlFlowView = new ISelectionListener() {
+        @Override
+        public void selectionChanged(IWorkbenchPart part, ISelection selection) {
+            if (selection instanceof IStructuredSelection) {
+                Object element = ((IStructuredSelection) selection).getFirstElement();
+                if (element instanceof ControlFlowEntry) {
+                    FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+                    ControlFlowEntry entry = (ControlFlowEntry) element;
+                    String machineName = entry.getTrace().getName();
+                    String threadName = entry.getName();
+                    int threadID = entry.getThreadId();
+                    presentationProvider.setSelectedControlFlowViewEntry(element);
+                    presentationProvider.setSelectedMachine(machineName);
+                    // TODO: Find a way to access to the id of the cpu running
+                    // the process
+                    presentationProvider.setSelectedThread(machineName, threadID, threadName);
+
+                    updateButtonsSelection();
+                    updateToolTipTexts();
+                }
+            }
+        }
+    };
+
     // ------------------------------------------------------------------------
     // Constructors
     // ------------------------------------------------------------------------
@@ -58,6 +256,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         super(ID, new FusedVMViewPresentationProvider());
         setFilterColumns(FILTER_COLUMN_NAMES);
         setFilterLabelProvider(new FusedVMFilterLabelProvider());
+        registerListener();
+
     }
 
     private static class FusedVMFilterLabelProvider extends TreeLabelProvider {
@@ -114,7 +314,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
 
     @Override
     protected void buildEventList(ITmfTrace trace, ITmfTrace parentTrace, final IProgressMonitor monitor) {
-
         if (monitor.isCanceled()) {
             return;
         }
@@ -134,12 +333,12 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         };
 
         /* All traces are highlighted by default. */
-        FusedVMViewPresentationProvider provider = (FusedVMViewPresentationProvider) getPresentationProvider();
+        FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
         /* Remove highlighted machines from other analysis. */
-        provider.destroyHightlightedMachines();
+        presentationProvider.destroyHightlightedMachines();
         for (ITmfTrace t : ((VirtualMachineExperiment) parentTrace).getTraces()) {
             Machine m = new Machine(t.getName());
-            provider.getHighlightedMachines().put(t.getName(), m);
+            presentationProvider.getHighlightedMachines().put(t.getName(), m);
         }
 
         /* Highlight all vcpus of all guests by default */
@@ -147,7 +346,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         for (Integer machineQuark : machinesQuarks) {
             String machineName = ssq.getAttributeName(machineQuark);
             List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
-            Machine machine = provider.getHighlightedMachines().get(machineName);
+            Machine machine = presentationProvider.getHighlightedMachines().get(machineName);
             if (machine != null) {
                 for (Integer vcpu : vCpuquarks) {
                     machine.addCpu(ssq.getAttributeName(vcpu));
@@ -353,6 +552,136 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         selectMachineAction.setToolTipText(Messages.FusedVMView_selectMachineText);
         manager.add(selectMachineAction);
         manager.add(new Separator());
+
+        manager.add(fHighlightMachine);
+        manager.add(fHighlightCPU);
+        manager.add(fHighlightProcess);
+
     }
 
+    @Override
+    public void createPartControl(Composite parent) {
+        super.createPartControl(parent);
+        getTimeGraphViewer().addTimeListener(fTimeListenerFusedVMView);
+        getTimeGraphViewer().addSelectionListener(fSelListenerFusedVMView);
+    }
+
+    /**
+     * Gets the beginning of the selected time
+     *
+     * @return the beginning of the selected time
+     */
+    public long getBeginSelectedTime() {
+        return beginSelectedTime;
+    }
+
+    /**
+     * Sets the beginning of the selected time
+     *
+     * @param begin
+     *            the beginning of the selected time
+     */
+    public void setBeginSelectedTime(long begin) {
+        beginSelectedTime = begin;
+    }
+
+    /**
+     * Gets the end of the selected time
+     *
+     * @return the end of the selected time
+     */
+    public long getEndSelectedTime() {
+        return endSelectedTime;
+    }
+
+    /**
+     * Sets the end of the selected time
+     *
+     * @param end
+     *            the end of the selected time
+     */
+    public void setEndSelectedTime(long end) {
+        endSelectedTime = end;
+    }
+
+    /**
+     * Getter to the presentation provider
+     *
+     * @return the FusedVMViewProvider
+     */
+    public FusedVMViewPresentationProvider getFusedVMViewPresentationProvider() {
+        ITimeGraphPresentationProvider2 pp = getPresentationProvider();
+        if (!(pp instanceof FusedVMViewPresentationProvider)) {
+            return null;
+        }
+        return (FusedVMViewPresentationProvider) pp;
+    }
+
+    private void printInformations() {
+        long begin = getBeginSelectedTime();
+        long end = getEndSelectedTime();
+
+        System.out.println("Begin time: " + Utils.formatTime(begin, TimeFormat.CALENDAR, Resolution.NANOSEC)); //$NON-NLS-1$
+        System.out.println("End time: " + Utils.formatTime(end, TimeFormat.CALENDAR, Resolution.NANOSEC)); //$NON-NLS-1$
+        System.out.println();
+
+    }
+
+    /**
+     * Registers the listener that handles the click on a Control Flow View
+     * entry
+     */
+    private void registerListener() {
+        if (!PlatformUI.isWorkbenchRunning()) {
+            return;
+        }
+        IWorkbench wb = PlatformUI.getWorkbench();
+        if (wb == null) {
+            return;
+        }
+        IWorkbenchWindow wbw = wb.getActiveWorkbenchWindow();
+        if (wbw == null) {
+            return;
+        }
+        final IWorkbenchPage activePage = wbw.getActivePage();
+        if (activePage == null) {
+            return;
+        }
+
+        /* Add the listener to the control flow view */
+        IViewPart view = activePage.findView(ControlFlowView.ID);
+        if (view != null) {
+            view.getSite().getWorkbenchWindow().getSelectionService().addPostSelectionListener(fSelListenerControlFlowView);
+        }
+    }
+
+    /**
+     * Updates the tooltip text of the buttons so it corresponds to the machine,
+     * cpu and process selected
+     */
+    private void updateToolTipTexts() {
+        FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+        fHighlightMachine.setToolTipText(presentationProvider.getSelectedMachine());
+        fHighlightCPU.setToolTipText(Integer.toString((presentationProvider.getSelectedCpu())));
+        fHighlightProcess.setToolTipText(Messages.FusedVMView_ButtonProcessSelected + ": " + //$NON-NLS-1$
+                presentationProvider.getSelectedThreadName() + "\n" + //$NON-NLS-1$
+                Messages.FusedVMView_ButtonHoverProcessSelectedTID + ": " + //$NON-NLS-1$
+                Integer.toString(presentationProvider.getSelectedThreadID()));
+    }
+
+    /**
+     * Sets the checked state of the buttons
+     */
+    private void updateButtonsSelection() {
+        FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+        Map<String, Machine> highlightedMachines = presentationProvider.getHighlightedMachines();
+        Machine machine = highlightedMachines.get(presentationProvider.getSelectedMachine());
+        if (machine == null) {
+            return;
+        }
+
+        fHighlightMachine.setChecked(machine.isHighlighted());
+        fHighlightCPU.setChecked(machine.isCpuHighlighted(presentationProvider.getSelectedCpu()));
+        fHighlightProcess.setChecked(presentationProvider.isThreadSelected(machine.getMachineName(), presentationProvider.getSelectedThreadID()));
+    }
 }

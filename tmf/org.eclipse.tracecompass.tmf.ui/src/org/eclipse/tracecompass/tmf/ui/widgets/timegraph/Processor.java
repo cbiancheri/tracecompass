@@ -33,4 +33,8 @@ public class Processor {
     public Machine getMachine() {
         return machine;
     }
+
+    public String getNumber() {
+        return n;
+    }
 }
