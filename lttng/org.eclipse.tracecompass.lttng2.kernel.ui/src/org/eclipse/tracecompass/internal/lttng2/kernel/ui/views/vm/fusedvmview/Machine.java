@@ -1,13 +1,9 @@
-package org.eclipse.tracecompass.tmf.ui.widgets.timegraph;
+package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * @author Cedric Biancheri
- * @since 2.0
- *
- */
+
 public class Machine {
     private String machineName;
     private Boolean highlighted;

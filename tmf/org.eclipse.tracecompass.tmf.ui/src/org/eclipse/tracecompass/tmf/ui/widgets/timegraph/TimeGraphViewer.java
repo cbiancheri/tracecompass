@@ -69,7 +69,6 @@ import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.internal.tmf.ui.dialogs.AddBookmarkDialog;
 import org.eclipse.tracecompass.tmf.ui.signal.TmfTimeViewAlignmentInfo;
 import org.eclipse.tracecompass.tmf.ui.views.ITmfTimeAligned;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.SelectMachineDialog;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.ShowFilterDialogAction;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
@@ -174,7 +173,6 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
     private Action fNextMarkerAction;
     private Action fPreviousMarkerAction;
     private MenuManager fMarkersMenu;
-    private Action fSelectMachineAction;
 
     /** The list of bookmarks */
     private final List<IMarkerEvent> fBookmarks = new ArrayList<>();
@@ -2626,41 +2624,6 @@ public class TimeGraphViewer implements ITimeDataProvider, IMarkerAxisListener, 
      */
     public ITimeGraphPresentationProvider getTimeGraphProvider() {
         return fTimeGraphProvider;
-    }
-
-    /**
-     * Get the select machine action.
-     *
-     * @return the select machine action
-     *
-     * @since 2.0
-     */
-    public Action getSelectMachineAction() {
-        if (fSelectMachineAction == null) {
-            fSelectMachineAction = new Action() {
-                @Override
-                public void run() {
-                    selectMachine();
-                }
-            };
-            fSelectMachineAction.setText(Messages.TmfTimeGraphViewer_SelectMachineActionNameText);
-            fSelectMachineAction.setToolTipText(Messages.TmfTimeGraphViewer_SelectMachineActionToolTipText);
-            fSelectMachineAction.setImageDescriptor(Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_UI_SELECT_MACHINE));
-        }
-
-        return fSelectMachineAction;
-    }
-
-    /**
-     * Callback for the select machine action
-     * @since 2.0
-     */
-    public void selectMachine() {
-        if (fDataViewer == null || fDataViewer.isDisposed()) {
-            return;
-        }
-
-        SelectMachineDialog.open(fDataViewer.getShell(), getTimeGraphProvider());
     }
 
 }

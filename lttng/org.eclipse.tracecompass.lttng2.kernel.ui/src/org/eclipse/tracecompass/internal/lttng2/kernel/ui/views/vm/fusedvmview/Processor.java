@@ -1,12 +1,7 @@
-package org.eclipse.tracecompass.tmf.ui.widgets.timegraph;
+package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
-/**
- * @author Cedric Biancheri
- * @since 2.0
- *
- */
+
 public class Processor {
-
     private String n;
     private Boolean highlighted;
     private Machine machine;
