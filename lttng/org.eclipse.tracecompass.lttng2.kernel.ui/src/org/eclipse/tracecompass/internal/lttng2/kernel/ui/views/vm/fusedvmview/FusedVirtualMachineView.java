@@ -17,13 +17,16 @@ import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
 import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowView;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
+import org.eclipse.tracecompass.internal.lttng2.kernel.ui.Activator;
 import org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview.FusedVMViewEntry.Type;
+import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystem;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
@@ -35,10 +38,8 @@ import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractStateSystemTimeGr
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider2;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphSelectionListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphTimeListener;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphSelectionEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphTimeEvent;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphViewer;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
@@ -118,6 +119,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             refresh();
         }
     };
+
+    private Action fSelectMachineAction;
 
     /** The beginning of the selected time */
     private long beginSelectedTime;
@@ -331,6 +334,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 return ((FusedVMViewEntry) o1).compareTo(o2);
             }
         };
+
 
         /* All traces are highlighted by default. */
         FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
@@ -546,8 +550,9 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     @Override
     protected void fillLocalToolBar(IToolBarManager manager) {
         super.fillLocalToolBar(manager);
-        TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
-        IAction selectMachineAction = timeGraphViewer.getSelectMachineAction();
+//        TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
+//        IAction selectMachineAction = timeGraphViewer.getSelectMachineAction();
+        IAction selectMachineAction = getSelectMachineAction();
         selectMachineAction.setText(Messages.FusedVMView_selectMachineText);
         selectMachineAction.setToolTipText(Messages.FusedVMView_selectMachineText);
         manager.add(selectMachineAction);
@@ -683,5 +688,31 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         fHighlightMachine.setChecked(machine.isHighlighted());
         fHighlightCPU.setChecked(machine.isCpuHighlighted(presentationProvider.getSelectedCpu()));
         fHighlightProcess.setChecked(presentationProvider.isThreadSelected(machine.getMachineName(), presentationProvider.getSelectedThreadID()));
+    }
+
+    public Action getSelectMachineAction() {
+        if (fSelectMachineAction == null) {
+            fSelectMachineAction = new Action() {
+                @Override
+                public void run() {
+                    selectMachine();
+                }
+            };
+            fSelectMachineAction.setText(Messages.FusedVMView_SelectMachineActionNameText);
+            fSelectMachineAction.setToolTipText(Messages.FusedVMView_SelectMachineActionToolTipText);
+            fSelectMachineAction.setImageDescriptor(Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_UI_SELECT_MACHINE));
+        }
+
+        return fSelectMachineAction;
+    }
+
+    public void selectMachine() {
+        Control dataViewer = getTimeGraphViewer().getControl();
+        if (dataViewer == null || dataViewer.isDisposed()) {
+            return;
+        }
+
+
+        SelectMachineDialog.open(dataViewer.getShell(), getFusedVMViewPresentationProvider());
     }
 }

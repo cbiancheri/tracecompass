@@ -231,13 +231,23 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                 ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
                 ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
 
+                /* This part is used to remember how many cpus a machine has */
                 if (host.isGuest()) {
                     int quarkMachines = getNodeMachines(ss);
                     ss.getQuarkRelativeAndAdd(quarkMachines, traceName, currentVCpu.toString());
                 }
             } else {
+                /*
+                 * We still need to check here if we are a guest because the
+                 * guest's trace can be longer than the host's and we might be
+                 * in a vm even if inVM == false
+                 */
                 int quarkMachines = getNodeMachines(ss);
-                ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                if (host.isGuest()) {
+                    ss.getQuarkRelativeAndAdd(quarkMachines, traceName, currentVCpu.toString());
+                } else {
+                    ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                }
 
                 valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
             }

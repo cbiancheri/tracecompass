@@ -35,6 +35,9 @@ public class Messages extends NLS {
     public static String FusedVMView_ButtonCPUSelected;
     public static String FusedVMView_ButtonProcessSelected;
     public static String FusedVMView_ButtonHoverProcessSelectedTID;
+    public static String FusedVMView_SelectMachineActionNameText;
+    public static String FusedVMView_SelectMachineActionToolTipText;
+    public static String FusedVMView_SELECT_MACHINE;
 
     static {
         // initialize resource bundle

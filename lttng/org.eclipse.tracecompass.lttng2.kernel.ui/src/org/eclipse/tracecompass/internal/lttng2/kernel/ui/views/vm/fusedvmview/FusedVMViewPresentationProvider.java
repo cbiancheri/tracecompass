@@ -1,5 +1,6 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,7 +30,6 @@ import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
@@ -57,6 +57,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Thread selectedThread;
     private int selectedCpu;
     private Set<Thread> highlightedTreads = new HashSet<>();
+    private Map<String, Machine> highlightedMachines = new HashMap<>();
     private static int ponderation = 3;
 
     private class Thread {
@@ -774,6 +775,14 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      */
     public void removeHighlightedThread() {
         highlightedTreads.remove(selectedThread);
+    }
+
+    public Map<String, Machine> getHighlightedMachines() {
+        return highlightedMachines;
+    }
+
+    public void destroyHightlightedMachines() {
+        highlightedMachines = new HashMap<>();
     }
 
 }

@@ -15,7 +15,6 @@
 package org.eclipse.tracecompass.tmf.ui.widgets.timegraph;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +36,6 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
 
     private ITmfTimeGraphDrawingHelper fDrawingHelper;
     private final String fStateTypeName;
-    private Map<String, Machine> highlightedMachines = new HashMap<>();
 
     // The list of listeners for graph color changes
     private final List<ITimeGraphColorListener> fListeners = new ArrayList<>();
@@ -162,21 +160,6 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
         for (ITimeGraphColorListener listener : fListeners) {
             listener.colorSettingsChanged(getStateTable());
         }
-    }
-
-    /**
-     * @return the highlighted machines
-     * @since 2.0
-     */
-    public Map<String, Machine> getHighlightedMachines() {
-        return highlightedMachines;
-    }
-
-    /**
-     * @since 2.0
-     */
-    public void destroyHightlightedMachines() {
-        highlightedMachines = new HashMap<>();
     }
 
 }

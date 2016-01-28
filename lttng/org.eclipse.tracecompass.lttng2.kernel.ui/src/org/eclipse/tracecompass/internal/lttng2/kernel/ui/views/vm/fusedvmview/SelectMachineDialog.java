@@ -1,4 +1,4 @@
-package org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs;
+package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,23 +22,14 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
-import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorContentProvider;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorLabelProvider;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Machine;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.Processor;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
 import org.eclipse.ui.dialogs.FilteredTree;
 import org.eclipse.ui.dialogs.PatternFilter;
 
-/**
- * @author Cedric Biancheri
- * @since 2.0
- *
- */
 public class SelectMachineDialog extends TitleAreaDialog {
-    private final ITimeGraphPresentationProvider provider;
+
+    private final FusedVMViewPresentationProvider provider;
     private CheckboxTreeViewer fCheckboxTreeViewer;
     private TmfNavigatorContentProvider fContentProvider;
     private TmfNavigatorLabelProvider fLabelProvider;
@@ -53,7 +44,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
      * @param provider
      *            The presentation provider
      */
-    public static void open(Shell parent, ITimeGraphPresentationProvider provider) {
+    public static void open(Shell parent, FusedVMViewPresentationProvider provider) {
         (new SelectMachineDialog(parent, provider)).open();
     }
 
@@ -65,7 +56,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
      * @param provider
      *            The presentation provider
      */
-    public SelectMachineDialog(Shell parent, ITimeGraphPresentationProvider provider) {
+    public SelectMachineDialog(Shell parent, FusedVMViewPresentationProvider provider) {
         super(parent);
         this.provider = provider;
         this.setShellStyle(getShellStyle() | SWT.RESIZE);
@@ -73,12 +64,12 @@ public class SelectMachineDialog extends TitleAreaDialog {
 
     @Override
     protected Control createDialogArea(Composite parent) {
-        if (!(provider instanceof TimeGraphPresentationProvider)) {
+        if (provider == null) {
             return null;
         }
         createMachinesGroup(parent);
 
-        setTitle(Messages.TmfSelectMachine_SELECT_MACHINE);
+        setTitle(Messages.FusedVMView_SELECT_MACHINE);
         setDialogHelpAvailable(false);
         setHelpAvailable(false);
 
@@ -87,8 +78,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
 
     private void createMachinesGroup(Composite composite) {
 
-        TimeGraphPresentationProvider timeGraphPresentationProvider = (TimeGraphPresentationProvider) provider;
-        Map<String, Machine> machines = timeGraphPresentationProvider.getHighlightedMachines();
+        Map<String, Machine> machines = provider.getHighlightedMachines();
 
         new FilteredTree(composite, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL | SWT.BORDER, new PatternFilter(), true) {
             @Override
@@ -152,7 +142,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
         tree.setHeaderVisible(true);
 
         final TreeViewerColumn column = new TreeViewerColumn(fCheckboxTreeViewer, SWT.NONE);
-        column.getColumn().setText(Messages.TmfTimeGraphViewer_SelectMachineActionNameText);
+        column.getColumn().setText(Messages.FusedVMView_SelectMachineActionNameText);
         column.setLabelProvider(new ColumnLabelProvider() {
             @Override
             public String getText(Object element) {
@@ -225,4 +215,5 @@ public class SelectMachineDialog extends TitleAreaDialog {
         createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL,
                 true);
     }
+
 }
