@@ -17,6 +17,10 @@ import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
 
 /**
+ * Fused Virtual Machine analysis. Creates a unique state system by reading at
+ * the same time kernel traces of VMs and host. Completely based on
+ * KernelAnalysisModule.
+ *
  * @author Cedric Biancheri
  *
  */

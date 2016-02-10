@@ -335,7 +335,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             }
         };
 
-
+        /* TODO: put the two next blocs at the end of the method */
         /* All traces are highlighted by default. */
         FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
         /* Remove highlighted machines from other analysis. */
@@ -550,8 +550,9 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     @Override
     protected void fillLocalToolBar(IToolBarManager manager) {
         super.fillLocalToolBar(manager);
-//        TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
-//        IAction selectMachineAction = timeGraphViewer.getSelectMachineAction();
+        // TimeGraphViewer timeGraphViewer = getTimeGraphViewer();
+        // IAction selectMachineAction =
+        // timeGraphViewer.getSelectMachineAction();
         IAction selectMachineAction = getSelectMachineAction();
         selectMachineAction.setText(Messages.FusedVMView_selectMachineText);
         selectMachineAction.setToolTipText(Messages.FusedVMView_selectMachineText);
@@ -711,7 +712,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         if (dataViewer == null || dataViewer.isDisposed()) {
             return;
         }
-
 
         SelectMachineDialog.open(dataViewer.getShell(), getFusedVMViewPresentationProvider());
     }
