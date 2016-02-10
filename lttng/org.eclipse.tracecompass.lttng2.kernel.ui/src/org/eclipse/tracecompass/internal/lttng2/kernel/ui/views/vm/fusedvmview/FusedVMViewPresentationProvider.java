@@ -717,7 +717,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      * @return the selectedThreadID
      */
     public int getSelectedThreadID() {
-        return selectedThread.getThreadID();
+        if (selectedThread != null) {
+            return selectedThread.getThreadID();
+        }
+        return -1;
     }
 
     /**
@@ -726,7 +729,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      * @return the selectedThread name;
      */
     public String getSelectedThreadName() {
-        return selectedThread.getThreadName();
+        if (selectedThread != null) {
+            return selectedThread.getThreadName();
+        }
+        return "No thread selected"; //$NON-NLS-1$
     }
 
     /**

@@ -21,7 +21,7 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 public class VirtualMachine {
 
     private static enum MachineType {
-        HOST, GUEST
+        HOST, GUEST, CONTAINER
     }
 
     private final long fVmUid;
@@ -60,6 +60,23 @@ public class VirtualMachine {
         return new VirtualMachine(MachineType.GUEST, hostId, uid, traceName);
     }
 
+    /**
+     * Create a new container machine. A container is a new namespace contained
+     * in the host, a virtual machine or an other namespace
+     *
+     * @param uid
+     *            Unique identifier of the container. It is the namespace
+     *            identifier
+     * @param hostId
+     *            ID of the machine containing the container.
+     * @param traceName
+     *            The name of the trace
+     * @return A {@link VirtualMachine} of type container.
+     */
+    public static VirtualMachine newContainerMachine(long uid, String hostId, String traceName) {
+        return new VirtualMachine(MachineType.CONTAINER, hostId, uid, traceName);
+    }
+
     private VirtualMachine(MachineType type, String hostId, long uid, String traceName) {
         fType = type;
         fVmUid = uid;
@@ -68,13 +85,31 @@ public class VirtualMachine {
     }
 
     /**
-     * Return whether this machine is a guest or a host
+     * Return true if this machine is a guest
      *
-     * @return {@code true} if the machine is a guest, or {@code false} if it is
-     *         a host
+     * @return {@code true} if the machine is a guest, or {@code false} if not
      */
     public boolean isGuest() {
         return fType == MachineType.GUEST;
+    }
+
+    /**
+     * Return true if this machine is a host
+     *
+     * @return {@code true} if the machine is a host, or {@code false} if not
+     */
+    public boolean isHost() {
+        return fType == MachineType.HOST;
+    }
+
+    /**
+     * Return true if this machine is a container
+     *
+     * @return {@code true} if the machine is a container, or {@code false} if
+     *         not
+     */
+    public boolean isContainer() {
+        return fType == MachineType.CONTAINER;
     }
 
     /**
