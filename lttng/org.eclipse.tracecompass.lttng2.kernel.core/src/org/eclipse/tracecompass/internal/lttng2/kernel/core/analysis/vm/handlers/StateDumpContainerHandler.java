@@ -17,7 +17,7 @@ import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
 
-public class StateDumpHandler extends KernelEventHandler {
+public class StateDumpContainerHandler extends KernelEventHandler {
 
     private List<VirtualThread> virtualThreads;
 
@@ -37,7 +37,7 @@ public class StateDumpHandler extends KernelEventHandler {
         }
     }
 
-    public StateDumpHandler(IKernelAnalysisEventLayout layout) {
+    public StateDumpContainerHandler(IKernelAnalysisEventLayout layout) {
         super(layout);
         virtualThreads = new ArrayList<>();
     }
@@ -66,7 +66,7 @@ public class StateDumpHandler extends KernelEventHandler {
             return;
         }
 
-        System.err.println("Adding name of: " + tid + "\tMachine: " + machineName);
+//        System.err.println("Adding name of: " + tid + "\tMachine: " + machineName);
         int curThreadNode = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeThreads(ss), machineName, String.valueOf(tid));
         /* Set the process' name. Only for level 0. */
         int quark = ss.getQuarkRelativeAndAdd(curThreadNode, Attributes.EXEC_NAME);
@@ -99,7 +99,7 @@ public class StateDumpHandler extends KernelEventHandler {
 
         /* We go through all the namespaces */
         for (VirtualThread vt : virtualThreads) {
-            System.err.println("\tInfo of TID: " + vt.fVtid + " Level: " + vt.fNsLevel);
+//            System.err.println("\tInfo of TID: " + vt.fVtid + " Level: " + vt.fNsLevel);
             String attributePpid = Attributes.PPID;
             /* Prepare the level if we are not in the root namespave */
             if (vt.fNsLevel != 0) {
@@ -132,6 +132,17 @@ public class StateDumpHandler extends KernelEventHandler {
                 /* If the value didn't exist previously, set it */
                 value = TmfStateValue.newValueInt(vt.fNsLevel);
                 ss.modifyAttribute(ts, value, quark);
+            }
+            /*
+             * Set the max level, only at level 0. This can be useful to know
+             * the depth of the hierarchy.
+             */
+            if (vt.fNsLevel == 0) {
+                quark = ss.getQuarkRelativeAndAdd(curThreadNode, "ns_max_level");
+                if (ss.queryOngoingState(quark).isNull()) {
+                    value = TmfStateValue.newValueInt(virtualThreads.size());
+                    ss.modifyAttribute(ts, value, quark);
+                }
             }
             /* Set the namespace identification number */
             quark = ss.getQuarkRelativeAndAdd(curThreadNode, "ns_inum");

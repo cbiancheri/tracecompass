@@ -346,6 +346,26 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                 ITmfStateValue value = interval.getStateValue();
                                 int currentThreadId = value.unboxInt();
                                 retMap.put(Messages.FusedVMView_attributeTidName, Integer.toString(currentThreadId));
+
+                                /* TODO: display container info */
+                                int nsMaxLevelQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), "ns_max_level");
+                                interval = ss.querySingleState(hoverTime, nsMaxLevelQuark);
+                                int nsMaxLevel = interval.getStateValue().unboxInt();
+                                if (nsMaxLevel != 1) {
+                                    int actualLevel = 1;
+                                    int virtualTIDQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), "VTID");
+                                    actualLevel++;
+                                    while (actualLevel < nsMaxLevel) {
+                                        virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, "VTID");
+                                        actualLevel++;
+                                    }
+                                    int vtid = ss.querySingleState(hoverTime, virtualTIDQuark).getStateValue().unboxInt();
+                                    int namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, "ns_inum");
+                                    long namespaceID = ss.querySingleState(hoverTime, namespaceIDQuark).getStateValue().unboxLong();
+                                    retMap.put("> vTID", Integer.toString(vtid));
+                                    retMap.put("> Container", Long.toString(namespaceID));
+                                }
+
                                 int execNameQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), Attributes.EXEC_NAME);
                                 interval = ss.querySingleState(hoverTime, execNameQuark);
                                 if (!interval.getStateValue().isNull()) {
@@ -571,13 +591,18 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 ITmfStateValue valueInVM = interval.getStateValue();
                 int cpu;
                 int inVM = valueInVM.unboxInt();
-                if (inVM == StateValues.CONDITION_IN_VM) {
+                switch (inVM) {
+                case StateValues.CONDITION_IN_VM:
                     int machineVCpuQuark = ss.getQuarkRelative(cpuQuark, Attributes.VIRTUAL_CPU);
                     interval = ss.querySingleState(time, machineVCpuQuark);
                     value = interval.getStateValue();
                     cpu = value.unboxInt();
-                } else {
+                    break;
+                case StateValues.CONDITION_OUT_VM:
                     cpu = Integer.parseInt(ss.getAttributeName(cpuQuark));
+                    break;
+                default:
+                    return true;
                 }
                 Machine machine = map.get(machineName);
                 if (machine != null) {

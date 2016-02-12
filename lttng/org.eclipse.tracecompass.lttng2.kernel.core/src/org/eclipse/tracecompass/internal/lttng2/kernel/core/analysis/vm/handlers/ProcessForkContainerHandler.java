@@ -24,10 +24,10 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
         ITmfEventField field;
         String machineName = event.getTrace().getName();
         String childProcessName = (String) content.getField(getLayout().fieldChildComm()).getValue();
-        long childVTID[] = {-1};
+        long childVTIDs[] = { -1 };
         field = content.getField("vtids"); //$NON-NLS-1$
         if (field != null) {
-            childVTID = (long[]) field.getValue();
+            childVTIDs = (long[]) field.getValue();
         }
         long childNSInum;
         field = content.getField("child_ns_inum"); //$NON-NLS-1$
@@ -35,6 +35,13 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
             childNSInum = -1;
         } else {
             childNSInum = (Long) field.getValue();
+        }
+        long parentNSInum;
+        field = content.getField("parent_ns_inum"); //$NON-NLS-1$
+        if (field == null) {
+            parentNSInum = -1;
+        } else {
+            parentNSInum = (Long) field.getValue();
         }
 
         Integer parentTid = ((Long) content.getField(getLayout().fieldParentTid()).getValue()).intValue();
@@ -71,7 +78,83 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
         }
         quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.SYSTEM_CALL);
         ss.modifyAttribute(timestamp, value, quark);
+
+        Integer level = 0;
+        Integer maxLevel = childVTIDs.length;
+
+        /*
+         * Set the max level. It is useful if we want to know the depth of the
+         * hierarchy
+         */
+        quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_max_level");
+        value = TmfStateValue.newValueInt(maxLevel);
+        ss.modifyAttribute(timestamp, value, quark);
+
+        for (long vtid : childVTIDs) {
+            if (vtid == childTid) {
+                /* Set the namespace level */
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_level");
+                value = TmfStateValue.newValueInt(level);
+                ss.modifyAttribute(timestamp, value, quark);
+
+                /* Set the namespace ID */
+                quark = ss.getQuarkRelative(parentTidNode, "ns_inum");
+                value = ss.queryOngoingState(quark);
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                ss.modifyAttribute(timestamp, value, quark);
+                /* Nothing else to do at the level 0 */
+                continue;
+            }
+            /* Entering an other level */
+            level++;
+
+            if (level != maxLevel - 1 || childNSInum == parentNSInum) {
+                /*
+                 * We are not at the last level or we are still in the namespace
+                 * of the parent
+                 */
+
+                /* Create a new level for the current vtid */
+                parentTidNode = ss.getQuarkRelative(parentTidNode, "VTID");
+                childTidNode = ss.getQuarkRelativeAndAdd(childTidNode, "VTID");
+                value = TmfStateValue.newValueInt((int) vtid);
+                ss.modifyAttribute(timestamp, value, childTidNode);
+
+                /* Set the VPPID attribute for the child */
+                value = ss.queryOngoingState(parentTidNode);
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "VPPID");
+                ss.modifyAttribute(timestamp, value, quark);
+
+                /* Set the ns_inum attribute for the child */
+                quark = ss.getQuarkRelative(parentTidNode, "ns_inum");
+                value = ss.queryOngoingState(quark);
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                ss.modifyAttribute(timestamp, value, quark);
+            } else {
+                /* Last level and new namespace */
+
+                /* Create a new level for the current vtid */
+                childTidNode = ss.getQuarkRelativeAndAdd(childTidNode, "VTID");
+                value = TmfStateValue.newValueInt((int) vtid);
+                ss.modifyAttribute(timestamp, value, childTidNode);
+
+                /* Set the VPPID attribute for the child */
+                value = TmfStateValue.newValueInt(0);
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "VPPID");
+                ss.modifyAttribute(timestamp, value, quark);
+
+                /* Set the ns_inum attribute for the child */
+                value = TmfStateValue.newValueLong(childNSInum);
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                ss.modifyAttribute(timestamp, value, quark);
+            }
+
+            /* Set the ns_level attribute for the child */
+            quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_level");
+            value = TmfStateValue.newValueInt(level);
+            ss.modifyAttribute(timestamp, value, quark);
+        }
+
     }
 
 }
-
