@@ -40,6 +40,9 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         int thread = value.isNull() ? -1 : value.unboxInt();
 
         VirtualMachine host = sp.getCurrentMachine(event);
+        if (host == null) {
+            return;
+        }
 
         /* We are entering a vm. */
         sp.replaceValueCpusInVM(cpu, true);

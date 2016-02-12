@@ -35,9 +35,11 @@ public interface StateValues {
     /* CPU condition*/
     int CONDITION_IN_VM = 0;
     int CONDITION_OUT_VM = 1;
+    int CONDITION_UNKNOWN = 3;
 
     ITmfStateValue CONDITION_IN_VM_VALUE = TmfStateValue.newValueInt(CONDITION_IN_VM);
     ITmfStateValue CONDITION_OUT_VM_VALUE = TmfStateValue.newValueInt(CONDITION_OUT_VM);
+    ITmfStateValue CONDITION_UNKNOWN_VALUE = TmfStateValue.newValueInt(CONDITION_UNKNOWN);
 
     /* Process status */
     int PROCESS_STATUS_UNKNOWN = 0;

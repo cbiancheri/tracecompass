@@ -37,6 +37,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
         ITmfStateValue value;
 
         VirtualMachine host = sp.getCurrentMachine(event);
+        if (host == null) {
+            return;
+        }
 
         sp.replaceValueCpusInVM(cpu, false);
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);

@@ -343,4 +343,20 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
         return fTidToVm.get(ht);
     }
 
+    /**
+     * @param v
+     */
+    public void AddKnownMachine(VirtualMachine v) {
+        fKnownMachines.put(v.getHostId(), v);
+    }
+
+    /**
+     * Return the number of known machines
+     *
+     * @return The number of known machines
+     */
+    public int numberOfKnownMachines() {
+        return fKnownMachines.size();
+    }
+
 }
