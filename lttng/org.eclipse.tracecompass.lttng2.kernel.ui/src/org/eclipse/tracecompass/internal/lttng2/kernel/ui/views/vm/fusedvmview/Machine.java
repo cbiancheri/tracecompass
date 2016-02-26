@@ -14,6 +14,14 @@ public class Machine {
         highlighted = true;
     }
 
+    public Machine(String name, Integer nbCPUs) {
+        machineName = name;
+        highlighted = true;
+        for (Integer i = 0; i < nbCPUs; i++) {
+            cpus.add(new Processor(i.toString(), this));
+        }
+    }
+
     public String getMachineName() {
         return machineName;
     }

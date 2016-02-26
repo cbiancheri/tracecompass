@@ -21,6 +21,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
 import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowView;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
@@ -85,6 +86,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             }
             machine.setHighlightedWithAllCpu(isChecked());
             fHighlightCPU.setChecked(isChecked());
+            presentationProvider.destroyTimeEventHighlight();
             refresh();
         }
     };
@@ -102,6 +104,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             }
             machine.setHighlightedCpu(presentationProvider.getSelectedCpu(), isChecked());
             fHighlightMachine.setChecked(machine.isOneCpuHighlighted());
+            presentationProvider.destroyTimeEventHighlight();
             refresh();
         }
     };
@@ -116,6 +119,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             } else {
                 presentationProvider.removeHighlightedThread();
             }
+            presentationProvider.destroyTimeEventHighlight();
             refresh();
         }
     };
@@ -230,6 +234,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             if (selection instanceof IStructuredSelection) {
                 Object element = ((IStructuredSelection) selection).getFirstElement();
                 if (element instanceof ControlFlowEntry) {
+//                    System.err.println("Selected Control Flow entry");
                     FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
                     ControlFlowEntry entry = (ControlFlowEntry) element;
                     String machineName = entry.getTrace().getName();
@@ -335,28 +340,16 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             }
         };
 
-        /* TODO: put the two next blocs at the end of the method */
-        /* All traces are highlighted by default. */
+        ssq.waitUntilBuilt();
+
         FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+
+        /* All traces are highlighted by default. */
         /* Remove highlighted machines from other analysis. */
         presentationProvider.destroyHightlightedMachines();
-        for (ITmfTrace t : ((VirtualMachineExperiment) parentTrace).getTraces()) {
-            Machine m = new Machine(t.getName());
-            presentationProvider.getHighlightedMachines().put(t.getName(), m);
-        }
-
-        /* Highlight all vcpus of all guests by default */
-        List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*"); //$NON-NLS-1$
-        for (Integer machineQuark : machinesQuarks) {
-            String machineName = ssq.getAttributeName(machineQuark);
-            List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
-            Machine machine = presentationProvider.getHighlightedMachines().get(machineName);
-            if (machine != null) {
-                for (Integer vcpu : vCpuquarks) {
-                    machine.addCpu(ssq.getAttributeName(vcpu));
-                }
-            }
-
+        for (String s : FusedVMInformationProvider.getMachinesTraced(ssq)) {
+            Machine machine = new Machine(s, FusedVMInformationProvider.getNbCPUs(ssq, s));
+            presentationProvider.getHighlightedMachines().put(machine.getMachineName(), machine);
         }
 
         Map<Integer, FusedVMViewEntry> entryMap = new HashMap<>();
@@ -558,7 +551,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         selectMachineAction.setToolTipText(Messages.FusedVMView_selectMachineText);
         manager.add(selectMachineAction);
         manager.add(new Separator());
-
         manager.add(fHighlightMachine);
         manager.add(fHighlightCPU);
         manager.add(fHighlightProcess);
@@ -568,6 +560,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     @Override
     public void createPartControl(Composite parent) {
         super.createPartControl(parent);
+
         getTimeGraphViewer().addTimeListener(fTimeListenerFusedVMView);
         getTimeGraphViewer().addSelectionListener(fSelListenerFusedVMView);
     }
@@ -697,6 +690,9 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 @Override
                 public void run() {
                     selectMachine();
+                    FusedVMViewPresentationProvider presentationProvider = (FusedVMViewPresentationProvider) getPresentationProvider();
+                    presentationProvider.destroyTimeEventHighlight();
+                    redraw();
                 }
             };
             fSelectMachineAction.setText(Messages.FusedVMView_SelectMachineActionNameText);

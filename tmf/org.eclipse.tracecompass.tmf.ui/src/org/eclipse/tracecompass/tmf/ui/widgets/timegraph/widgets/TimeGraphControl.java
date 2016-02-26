@@ -68,6 +68,7 @@ import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
@@ -2266,7 +2267,12 @@ public class TimeGraphControl extends TimeGraphBaseControl
         // fill all rect area
         gc.setBackground(stateColor);
         if (visible) {
+            int eventAlpha = fTimeGraphProvider.getEventAlpha(event);
+            Color white = Display.getDefault().getSystemColor(SWT.COLOR_WHITE);
+            gc.setBackground(blendColors(white, stateColor, eventAlpha));
+//            gc.setAlpha(eventAlpha);
             gc.fillRectangle(rect);
+//            gc.setAlpha(255);
         } else if (fBlendSubPixelEvents) {
             gc.setAlpha(128);
             gc.fillRectangle(rect);
@@ -2282,6 +2288,17 @@ public class TimeGraphControl extends TimeGraphBaseControl
         }
         fTimeGraphProvider.postDrawEvent(event, rect, gc);
         return visible;
+    }
+
+    private Color blendColors(Color oldColor, Color newColor, int alpha) {
+        if (alpha < 0 || alpha >= 255) {
+            return newColor;
+        }
+        int red = (oldColor.getRed() * (255 - alpha) + newColor.getRed() * alpha) / 255;
+        int green = (oldColor.getGreen() * (255 - alpha) + newColor.getGreen() * alpha) / 255;
+        int blue = (oldColor.getBlue() * (255 - alpha) + newColor.getBlue() * alpha) / 255;
+        Color retColor = fResourceManager.createColor(new RGB(red, green, blue));
+        return retColor;
     }
 
     /**

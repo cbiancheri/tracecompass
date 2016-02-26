@@ -59,6 +59,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private Set<Thread> highlightedTreads = new HashSet<>();
     private Map<String, Machine> highlightedMachines = new HashMap<>();
     private static int ponderation = 3;
+    private final Map<ITimeEvent, Boolean> fTimeEventHighlight = new HashMap<>();
 
     private class Thread {
         private String machineName;
@@ -133,10 +134,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             this.rgb = rgb;
         }
 
-        public static State highLightState(State state) {
-            int n = state.ordinal();
-            return State.values()[n - 1];
-        }
+//        public static State highLightState(State state) {
+//            int n = state.ordinal();
+//            return State.values()[n - 1];
+//        }
 
     }
 
@@ -151,7 +152,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         return State.values();
     }
 
-    private State getEventState(TimeEvent event) {
+    static private State getEventState(TimeEvent event) {
         if (event.hasValue()) {
             FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
             int value = event.getValue();
@@ -159,23 +160,23 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             if (entry.getType() == Type.CPU) {
                 State state = null;
                 if (value == StateValues.CPU_STATUS_IDLE) {
-                    state = State.IDLE_DIM;
+                    state = State.IDLE;
                 } else if (value == StateValues.CPU_STATUS_RUN_USERMODE || value == StateValues.CPU_STATUS_SWITCH_TO_USERMODE) {
-                    state = State.USERMODE_DIM;
+                    state = State.USERMODE;
                 } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL || value == StateValues.CPU_STATUS_SWITCH_TO_SYSCALL) {
-                    state = State.SYSCALL_DIM;
+                    state = State.SYSCALL;
                 } else if (value == StateValues.CPU_STATUS_IRQ) {
-                    state = State.IRQ_DIM;
+                    state = State.IRQ;
                 } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
-                    state = State.SOFT_IRQ_DIM;
+                    state = State.SOFT_IRQ;
                 } else if (value == StateValues.CPU_STATUS_IN_VM) {
-                    state = State.IN_VM_DIM;
+                    state = State.IN_VM;
                 }
                 if (state != null) {
                     /* Add here your condition to highlight */
-                    if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
-                        return State.highLightState(state);
-                    }
+//                    if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
+//                        return State.highLightState(state);
+//                    }
                     return state;
                 }
 
@@ -534,6 +535,20 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      */
     private boolean isMachineHighlighted(ITimeEvent event) {
         Map<String, Machine> map = getHighlightedMachines();
+        boolean allDim = true;
+        boolean allHighlighted = true;
+        for(Machine m : map.values()) {
+            if(m.isHighlighted()) {
+                allDim = false;
+            } else {
+                allHighlighted = false;
+            }
+        }
+        if (allDim) {
+            return false;
+        } else if (allHighlighted) {
+            return true;
+        }
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
         ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
@@ -551,7 +566,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             ITmfStateValue value = interval.getStateValue();
             machineName = value.unboxStr();
         } catch (AttributeNotFoundException e) {
-            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
@@ -610,7 +626,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
             }
         } catch (AttributeNotFoundException e) {
-            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
@@ -648,7 +665,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             return highlightedTreads.contains(new Thread(machineName, currentThreadID));
 
         } catch (AttributeNotFoundException e) {
-            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
@@ -813,7 +831,36 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyHightlightedMachines() {
-        highlightedMachines = new HashMap<>();
+        highlightedMachines.clear();
+    }
+
+    public void destroyTimeEventHighlight() {
+        System.err.println("Destroying map");
+        printMapTimeEventSize();
+        fTimeEventHighlight.clear();
+    }
+
+    public void printMapTimeEventSize() {
+        System.err.println("Size of map: " + fTimeEventHighlight.size());
+    }
+
+    @Override
+    public int getEventAlpha(ITimeEvent event) {
+        int highlight = 255;
+        int dim = 55;
+        Boolean b = fTimeEventHighlight.get(event);
+        if (b != null) {
+            if (b) {
+                return highlight;
+            }
+            return dim;
+        }
+        if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
+            fTimeEventHighlight.put(event, Boolean.TRUE);
+            return highlight;
+        }
+        fTimeEventHighlight.put(event, Boolean.FALSE);
+        return dim;
     }
 
 }

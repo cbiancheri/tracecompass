@@ -79,24 +79,35 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         }
 
         Integer currentVCpu = vcpu.getCpuId().intValue();
+
+        /*
+         * If not already done, associate the TID in the host corresponding to
+         * the vCPU inside the state system.
+         */
+        int quarkMachines = FusedVirtualMachineStateProvider.getNodeMachines(ss);
+        int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkMachines, virtualMachine.getTraceName(), vcpu.getCpuId().toString());
+        if (ss.queryOngoingState(quarkVCPU).isNull()) {
+            ss.modifyAttribute(timestamp, TmfStateValue.newValueInt(thread), quarkVCPU);
+        }
+
+
         /* Set the value of the vcpu that is going to run. */
         int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
         ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
         ss.modifyAttribute(timestamp, valueVCpu, quarkVCpu);
 
         /*
-         * Set the name of the VM that will run just after the
-         * kvm_entry
+         * Set the name of the VM that will run just after the kvm_entry
          */
         int machineNameQuark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
         value = TmfStateValue.newValueString(virtualMachine.getTraceName());
         ss.modifyAttribute(timestamp, value, machineNameQuark);
 
         /*
-         * When the states of the vm and the host are the same the
-         * transition is not detected by the view so we add a false
-         * state that lasts 1 ns to make the transition visible.
-         * TODO: Find a better way to handle this problem.
+         * When the states of the vm and the host are the same the transition is
+         * not detected by the view so we add a false state that lasts 1 ns to
+         * make the transition visible. TODO: Find a better way to handle this
+         * problem.
          */
         /*
          * Then the current state of the vm is restored.

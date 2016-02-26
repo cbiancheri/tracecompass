@@ -165,5 +165,10 @@ public interface ITimeGraphPresentationProvider {
      */
     public boolean displayTimesInTooltip();
 
+    /**
+     * @since 2.0
+     */
+    public int getEventAlpha(ITimeEvent event);
+
 
 }

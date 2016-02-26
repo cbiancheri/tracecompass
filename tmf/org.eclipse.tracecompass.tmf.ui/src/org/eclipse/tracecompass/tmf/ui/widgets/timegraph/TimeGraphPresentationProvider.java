@@ -162,4 +162,12 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
         }
     }
 
+    /**
+     * @since 2.0
+     */
+    @Override
+    public int getEventAlpha(ITimeEvent event) {
+        return 255;
+    }
+
 }

@@ -29,6 +29,7 @@ import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
 import org.eclipse.tracecompass.tmf.core.event.TmfEventField;
 import org.eclipse.tracecompass.tmf.core.event.aspect.TmfCpuAspect;
+import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.core.trace.TmfTraceUtils;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperimentUtils;
@@ -77,6 +78,10 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
      */
     public QemuKvmVmModel(TmfExperiment exp) {
         fExperiment = exp;
+        if (exp.getTraces().size() == 1) {
+            ITmfTrace trace = exp.getTraces().get(0);
+            AddKnownMachine(VirtualMachine.newHostMachine(trace.getHostId(), trace.getName()));
+        }
     }
 
     @Override
@@ -359,4 +364,12 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
         return fKnownMachines.size();
     }
 
+    /**
+     * Return the known machines
+     *
+     * @return The known machines
+     */
+    public Map<String, VirtualMachine> getKnownMachines() {
+        return fKnownMachines;
+    }
 }
