@@ -124,4 +124,21 @@ public class TimeEvent implements ITimeEvent {
     public String toString() {
         return getClass().getSimpleName() + " start=" + fTime + " end=" + (fTime + fDuration) + " duration=" + fDuration + (hasValue() ? (" value=" + fValue) : ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$
     }
+
+    @Override
+    public boolean equals(Object o){
+        if (o instanceof TimeEvent) {
+            TimeEvent event = (TimeEvent) o;
+            return fEntry.equals(event.getEntry()) && fTime == event.getTime();
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 1;
+        hash = hash * 31 + fEntry.hashCode();
+        hash = hash * 31 + (int) fTime;
+        return hash;
+    }
 }

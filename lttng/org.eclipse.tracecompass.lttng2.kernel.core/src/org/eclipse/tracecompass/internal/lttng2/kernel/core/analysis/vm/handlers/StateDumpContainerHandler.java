@@ -1,7 +1,9 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
@@ -19,7 +21,7 @@ import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
 
 public class StateDumpContainerHandler extends KernelEventHandler {
 
-    private List<VirtualThread> virtualThreads;
+    private Map<String, List<VirtualThread>> map;
 
     private class VirtualThread {
         public final int fVtid;
@@ -39,7 +41,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
 
     public StateDumpContainerHandler(IKernelAnalysisEventLayout layout) {
         super(layout);
-        virtualThreads = new ArrayList<>();
+        map = new HashMap<>();
     }
 
     @Override
@@ -61,12 +63,19 @@ public class StateDumpContainerHandler extends KernelEventHandler {
          * with anything relevant for now.
          */
 
+        List<VirtualThread> virtualThreads = map.get(machineName);
+        if (virtualThreads == null) {
+            map.put(machineName, new ArrayList<>());
+            virtualThreads = map.get(machineName);
+        }
+        if (virtualThreads == null) {
+            return;
+        }
         virtualThreads.add(0, new VirtualThread(vtid, vpid, vppid, nsLevel, nsInum));
         if (nsLevel != 0) {
             return;
         }
 
-//        System.err.println("Adding name of: " + tid + "\tMachine: " + machineName);
         int curThreadNode = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeThreads(ss), machineName, String.valueOf(tid));
         /* Set the process' name. Only for level 0. */
         int quark = ss.getQuarkRelativeAndAdd(curThreadNode, Attributes.EXEC_NAME);
@@ -99,7 +108,6 @@ public class StateDumpContainerHandler extends KernelEventHandler {
 
         /* We go through all the namespaces */
         for (VirtualThread vt : virtualThreads) {
-//            System.err.println("\tInfo of TID: " + vt.fVtid + " Level: " + vt.fNsLevel);
             String attributePpid = Attributes.PPID;
             /* Prepare the level if we are not in the root namespave */
             if (vt.fNsLevel != 0) {

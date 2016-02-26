@@ -12,6 +12,8 @@
 
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 
+import java.util.Map;
+
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
@@ -54,6 +56,14 @@ public class VirtualCPU {
             VIRTUAL_CPU_TABLE.put(vm, cpu, ht);
         }
         return ht;
+    }
+
+    public static synchronized void addVirtualCPU(VirtualMachine vm, Long cpu) {
+        getVirtualCPU(vm, cpu);
+    }
+
+    public static synchronized @Nullable Map<Long, @Nullable VirtualCPU> getVirtualCPUs(VirtualMachine machine) {
+        return VIRTUAL_CPU_TABLE.row(machine);
     }
 
     private VirtualCPU(VirtualMachine vm, Long cpu) {

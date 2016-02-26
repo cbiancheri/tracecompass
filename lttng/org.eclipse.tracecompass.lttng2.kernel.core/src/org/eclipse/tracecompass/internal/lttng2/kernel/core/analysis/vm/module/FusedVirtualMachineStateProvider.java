@@ -15,6 +15,8 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module;
 import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -33,7 +35,6 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.KvmExitHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.PiSetprioHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessForkContainerHandler;
-import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessForkHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessFreeHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SchedSwitchHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SchedWakeupHandler;
@@ -141,8 +142,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         builder.put(layout.eventSoftIrqRaise(), new SoftIrqRaiseHandler(layout));
         builder.put(layout.eventSchedSwitch(), new SchedSwitchHandler(layout, this));
         builder.put(layout.eventSchedPiSetprio(), new PiSetprioHandler(layout, this));
-        // builder.put(layout.eventSchedProcessFork(), new
-        // ProcessForkHandler(layout, this));
         builder.put(layout.eventSchedProcessFork(), new ProcessForkContainerHandler(layout, this));
         builder.put(layout.eventSchedProcessExit(), new ProcessExitHandler(layout));
         builder.put(layout.eventSchedProcessFree(), new ProcessFreeHandler(layout, this));
@@ -202,29 +201,38 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         }
 
         VirtualMachine host = getCurrentMachine(event);
-        // VirtualMachine container = getCurrentContainer(event);
 
-        // String traceName = host.getTraceName();
         String traceName = event.getTrace().getName();
 
-        /* Have the hypervisor models handle the event first */
+        /*
+         * Have the hypervisor models handle the event first.
+         */
         fModel.handleEvent(event);
 
-        if (host != null && host.isGuest()) {
-            /*
-             * If the event is from a vm we have to find on which physical cpu
-             * it is running.
-             */
-            currentVCpu = cpu;
-            cpu = getPhysicalCPU(host, cpu);
-            // if (cpu == null) {
-            // if (event.getName().equals("lttng_statedump_process_state")) {
-            // System.err.println("Lost state process dump: " +
-            // event.getTrace().getName());
-            // }
-            // return;
-            // }
+
+        // VirtualMachine container = getCurrentContainer(event);
+
+        /*
+         * Continue even if host is unknown if the event is required for
+         * container analysis
+         */
+        if (host == null && !fContainerModel.getRequiredEvents().contains(event.getName())) {
+            return;
         }
+
+        if (host != null) {
+            /* Associate the cpu to its machine */
+            VirtualCPU.addVirtualCPU(host, cpu.longValue());
+            if (host.isGuest()) {
+                /*
+                 * If the event is from a vm we have to find on which physical
+                 * cpu it is running.
+                 */
+                currentVCpu = cpu;
+                cpu = getPhysicalCPU(host, cpu);
+            }
+        }
+
 
         Boolean inVM = false;
         if (cpu != null) {
@@ -250,36 +258,41 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                  */
                 int quarkCondition = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
                 ITmfStateValue valueCondition = StateValues.CONDITION_UNKNOWN_VALUE;
-                if (host != null) {
-                    if (inVM) {
-                        valueCondition = StateValues.CONDITION_IN_VM_VALUE;
-                        int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
-                        ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
-                        ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
+                ITmfStateValue machineState = StateValues.MACHINE_UNKNOWN_VALUE;
+                int quarkMachines = getNodeMachines(ss);
+                int machineNameQuark = ss.getQuarkRelativeAndAdd(quarkMachines, traceName);
+                if (inVM) {
+                    valueCondition = StateValues.CONDITION_IN_VM_VALUE;
+                    int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
+                    ITmfStateValue valueVCpu = TmfStateValue.newValueInt(currentVCpu);
+                    ss.modifyAttribute(ts, valueVCpu, quarkVCpu);
 
-                        /*
-                         * This part is used to remember how many cpus a machine
-                         * has
-                         */
-                        if (host.isGuest()) {
-                            int quarkMachines = getNodeMachines(ss);
-                            ss.getQuarkRelativeAndAdd(quarkMachines, traceName, currentVCpu.toString());
-                        }
-                    } else {
-                        /*
-                         * We still need to check here if we are a guest because
-                         * the guest's trace can be longer than the host's and
-                         * we might be in a vm even if inVM == false
-                         */
-                        int quarkMachines = getNodeMachines(ss);
-                        if (host.isGuest()) {
-                            ss.getQuarkRelativeAndAdd(quarkMachines, traceName, currentVCpu.toString());
-                        } else {
-                            ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
-                        }
-
-                        valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
+                    /*
+                     * This part is used to remember how many cpus a machine has
+                     */
+                    if (host != null && host.isGuest()) {
+                        ss.getQuarkRelativeAndAdd(machineNameQuark, currentVCpu.toString());
+                        machineState = StateValues.MACHINE_GUEST_VALUE;
                     }
+                } else {
+                    /*
+                     * We still need to check here if we are a guest because the
+                     * guest's trace can be longer than the host's and we might
+                     * be in a vm even if inVM == false
+                     */
+                    if (host != null && host.isGuest()) {
+                        ss.getQuarkRelativeAndAdd(machineNameQuark, currentVCpu.toString());
+                        machineState = StateValues.MACHINE_GUEST_VALUE;
+                    } else {
+                        ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                        machineState = StateValues.MACHINE_HOST_VALUE;
+                    }
+
+                    valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
+                }
+                /* Add the role of the machine in the state system */
+                if (ss.queryOngoingState(machineNameQuark).isNull()) {
+                    ss.modifyAttribute(getStartTime(), machineState, machineNameQuark);
                 }
                 ss.modifyAttribute(ts, valueCondition, quarkCondition);
 
@@ -369,7 +382,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         return ssb.getQuarkAbsoluteAndAdd(Attributes.RESOURCES, Attributes.SOFT_IRQS);
     }
 
-    private static int getNodeMachines(ITmfStateSystemBuilder ssb) {
+    public static int getNodeMachines(ITmfStateSystemBuilder ssb) {
         return ssb.getQuarkAbsoluteAndAdd(Attributes.MACHINES);
     }
 
@@ -502,10 +515,10 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     }
 
     public @Nullable Integer getPhysicalCPU(VirtualMachine host, Integer cpu) {
-        HostThread hostThread = fModel.getHostThreadFromVm(host);
-        if (hostThread == null) {
-            return null;
-        }
+        // HostThread hostThread = fModel.getHostThreadFromVm(host);
+        // if (hostThread == null) {
+        // return null;
+        // }
         VirtualCPU vcpu = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         Long physCpu = fModel.getPhysicalCpuFromVcpu(host, vcpu);
         if (physCpu == null) {
@@ -545,6 +558,19 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
 
     private static boolean isKvmExit(String eventName) {
         return eventName.equals(QemuKvmStrings.KVM_EXIT);
+    }
+
+    private int numberOfKnownVMandHost() {
+        return fModel.numberOfKnownMachines();
+    }
+
+    /**
+     * Return the known machines
+     *
+     * @return The known machines
+     */
+    public Map<String, VirtualMachine> getKnownMachines() {
+        return fModel.getKnownMachines();
     }
 
 }
