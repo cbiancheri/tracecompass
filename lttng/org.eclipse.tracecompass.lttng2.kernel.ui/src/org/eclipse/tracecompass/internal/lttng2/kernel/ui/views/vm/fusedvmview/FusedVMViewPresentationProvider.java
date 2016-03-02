@@ -835,14 +835,14 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyTimeEventHighlight() {
-        System.err.println("Destroying map");
-        printMapTimeEventSize();
+//        System.err.println("Destroying map");
+//        printMapTimeEventSize();
         fTimeEventHighlight.clear();
     }
 
-    public void printMapTimeEventSize() {
-        System.err.println("Size of map: " + fTimeEventHighlight.size());
-    }
+//    public void printMapTimeEventSize() {
+//        System.err.println("Size of map: " + fTimeEventHighlight.size());
+//    }
 
     @Override
     public int getEventAlpha(ITimeEvent event) {

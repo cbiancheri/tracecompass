@@ -166,9 +166,14 @@ public interface ITimeGraphPresentationProvider {
     public boolean displayTimesInTooltip();
 
     /**
+     * Returns the alpha coefficient the view should use to draw the rectangle
+     * corresponding to a time event.
+     *
+     * @param event
+     *            the time event corresponding to the state that will be drawn
+     * @return the alpha coefficient to use to draw the state
      * @since 2.0
      */
     public int getEventAlpha(ITimeEvent event);
-
 
 }

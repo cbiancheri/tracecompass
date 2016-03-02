@@ -2150,12 +2150,15 @@ public class TimeGraphControl extends TimeGraphBaseControl
         // fill all rect area
         gc.setBackground(stateColor);
         if (visible) {
+            /*
+             * Modify the color by taking into account an alpha coefficient. We
+             * can compute the color here because the background is always
+             * white.
+             */
             int eventAlpha = fTimeGraphProvider.getEventAlpha(event);
             Color white = Display.getDefault().getSystemColor(SWT.COLOR_WHITE);
             gc.setBackground(blendColors(white, stateColor, eventAlpha));
-//            gc.setAlpha(eventAlpha);
             gc.fillRectangle(rect);
-//            gc.setAlpha(255);
         } else if (fBlendSubPixelEvents) {
             gc.setAlpha(128);
             gc.fillRectangle(rect);
@@ -2173,6 +2176,17 @@ public class TimeGraphControl extends TimeGraphBaseControl
         return visible;
     }
 
+    /**
+     * Creates a blending between two colors using an alpha coefficient
+     *
+     * @param oldColor
+     *            the color returned if alpha equals 0
+     * @param newColor
+     *            the color returned if alpha equals 255
+     * @param alpha
+     *            the alpha coefficient
+     * @return the blended color
+     */
     private Color blendColors(Color oldColor, Color newColor, int alpha) {
         if (alpha < 0 || alpha >= 255) {
             return newColor;
