@@ -16,6 +16,9 @@ import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.events.MouseWheelListener;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
@@ -249,6 +252,20 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                     updateButtonsSelection();
                     updateToolTipTexts();
                 }
+            }
+        }
+    };
+
+    private final MouseWheelListener fWheelListener = new MouseWheelListener() {
+
+        @Override
+        public void mouseScrolled(MouseEvent e) {
+            if ((e.stateMask & SWT.SHIFT) != 0) {
+                FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+                presentationProvider.modifySelectedThreadAlpha(e.count);
+                presentationProvider.destroyTimeEventHighlight();
+                refresh();
+//                System.err.println("count: " + e.count);
             }
         }
     };
@@ -555,6 +572,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         manager.add(fHighlightCPU);
         manager.add(fHighlightProcess);
 
+
     }
 
     @Override
@@ -563,6 +581,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
 
         getTimeGraphViewer().addTimeListener(fTimeListenerFusedVMView);
         getTimeGraphViewer().addSelectionListener(fSelListenerFusedVMView);
+
+        getTimeGraphViewer().getTimeGraphControl().addMouseWheelListener(fWheelListener);
     }
 
     /**

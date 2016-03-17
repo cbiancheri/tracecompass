@@ -39,6 +39,7 @@ public class VirtualCPU {
     private ITmfStateValue currentState;
     /* Current thread of the cpu. */
     private ITmfStateValue currentThread;
+    private ITmfStateValue stateBeforeIRQ;
 
     /**
      * Return the virtual CPU for to the virtual machine and requested CPU ID
@@ -71,6 +72,7 @@ public class VirtualCPU {
         fCpuId = cpu;
         currentState = StateValues.CPU_STATUS_IDLE_VALUE;
         currentThread = TmfStateValue.newValueInt(-1);
+        stateBeforeIRQ = StateValues.CPU_STATUS_IDLE_VALUE;
     }
 
     /**
@@ -128,6 +130,20 @@ public class VirtualCPU {
      */
     public void setCurrentThread(ITmfStateValue currentThread) {
         this.currentThread = currentThread;
+    }
+
+    /**
+     * @return the stateBeforeIRQ
+     */
+    public ITmfStateValue getStateBeforeIRQ() {
+        return stateBeforeIRQ;
+    }
+
+    /**
+     * @param stateBeforeIRQ the stateBeforeIRQ to set
+     */
+    public void setStateBeforeIRQ(ITmfStateValue state) {
+        stateBeforeIRQ = state;
     }
 
 }

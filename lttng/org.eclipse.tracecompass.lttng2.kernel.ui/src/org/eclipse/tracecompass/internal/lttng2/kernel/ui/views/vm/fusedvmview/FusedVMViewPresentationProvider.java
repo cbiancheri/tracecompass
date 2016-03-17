@@ -1,11 +1,9 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Color;
@@ -56,26 +54,32 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private String selectedMachine;
     private Thread selectedThread;
     private int selectedCpu;
-    private Set<Thread> highlightedTreads = new HashSet<>();
+    private Map<Thread, Thread> highlightedTreads = new HashMap<>();
     private Map<String, Machine> highlightedMachines = new HashMap<>();
-    private static int ponderation = 3;
-    private final Map<ITimeEvent, Boolean> fTimeEventHighlight = new HashMap<>();
+    public static final int fHighlightAlpha = 255;
+    public static final int fDimAlpha = 55;
+    // private final Map<ITimeEvent, Boolean> fTimeEventHighlight = new
+    // HashMap<>();
+    private final Map<ITimeEvent, Integer> fTimeEventHighlight = new HashMap<>();
 
     private class Thread {
         private String machineName;
         private int threadID;
         private String threadName;
+        private int alpha;
 
         public Thread(String m, int t) {
             machineName = m;
             threadID = t;
             threadName = null;
+            alpha = fHighlightAlpha;
         }
 
         public Thread(String m, int t, String n) {
             machineName = m;
             threadID = t;
             threadName = n;
+            alpha = fHighlightAlpha;
         }
 
         public String getMachineName() {
@@ -84,6 +88,15 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 
         public int getThreadID() {
             return threadID;
+        }
+
+        public void modifyAlpha(int delta) {
+            alpha += delta;
+            if (alpha < 0) {
+                alpha = 0;
+            } else if (alpha > fHighlightAlpha) {
+                alpha = fHighlightAlpha;
+            }
         }
 
         @Override
@@ -109,24 +122,22 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         public String getThreadName() {
             return threadName;
         }
+
+        public int getAlpha() {
+            return alpha;
+        }
     }
 
     private enum State {
         IDLE(new RGB(200, 200, 200)),
-        IDLE_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1))),
         USERMODE(new RGB(0, 200, 0)),
-        USERMODE_DIM(new RGB((0 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1))),
         SYSCALL(new RGB(0, 0, 200)),
-        SYSCALL_DIM(new RGB((0 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1), (200 + ponderation * 255) / (ponderation + 1))),
         IRQ(new RGB(200, 0, 100)),
-        IRQ_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (0 + ponderation * 255) / (ponderation + 1), (100 + ponderation * 255) / (ponderation + 1))),
         SOFT_IRQ(new RGB(200, 150, 100)),
-        SOFT_IRQ_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), (150 + ponderation * 255) / (ponderation + 1), (100 + ponderation * 255) / (ponderation + 1))),
         IRQ_ACTIVE(new RGB(200, 0, 100)),
         SOFT_IRQ_RAISED(new RGB(200, 200, 0)),
         SOFT_IRQ_ACTIVE(new RGB(200, 150, 100)),
-        IN_VM(new RGB(200, 0, 200)),
-        IN_VM_DIM(new RGB((200 + ponderation * 255) / (ponderation + 1), 0, (200 + ponderation * 255) / (ponderation + 1)));
+        IN_VM(new RGB(200, 0, 200));
 
         public final RGB rgb;
 
@@ -134,10 +145,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             this.rgb = rgb;
         }
 
-//        public static State highLightState(State state) {
-//            int n = state.ordinal();
-//            return State.values()[n - 1];
-//        }
+        // public static State highLightState(State state) {
+        // int n = state.ordinal();
+        // return State.values()[n - 1];
+        // }
 
     }
 
@@ -174,9 +185,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
                 if (state != null) {
                     /* Add here your condition to highlight */
-//                    if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
-//                        return State.highLightState(state);
-//                    }
+                    // if (isMachineHighlighted(event) &&
+                    // isCpuHighlighted(event) || isProcessHighlighted(event)) {
+                    // return State.highLightState(state);
+                    // }
                     return state;
                 }
 
@@ -265,7 +277,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                         int vcpu = value.unboxInt();
                         retMap.put(Messages.FusedVMView_attributeVirtualCpu, String.valueOf(vcpu));
                     }
-
                 } catch (AttributeNotFoundException e) {
                     // Activator.getDefault().logError("Error in
                     // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
@@ -537,8 +548,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         Map<String, Machine> map = getHighlightedMachines();
         boolean allDim = true;
         boolean allHighlighted = true;
-        for(Machine m : map.values()) {
-            if(m.isHighlighted()) {
+        for (Machine m : map.values()) {
+            if (m.isHighlighted()) {
                 allDim = false;
             } else {
                 allHighlighted = false;
@@ -566,7 +577,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             ITmfStateValue value = interval.getStateValue();
             machineName = value.unboxStr();
         } catch (AttributeNotFoundException e) {
-//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            // Activator.getDefault().logError("Error in
+            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
@@ -626,7 +638,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
             }
         } catch (AttributeNotFoundException e) {
-//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            // Activator.getDefault().logError("Error in
+            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
@@ -637,9 +650,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     /**
      * Says for a specific event if the related process is highlighted
      */
-    private boolean isProcessHighlighted(ITimeEvent event) {
+    private int isProcessHighlighted(ITimeEvent event) {
         if (highlightedTreads.isEmpty()) {
-            return false;
+            // return false;
+            return fDimAlpha;
         }
 
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
@@ -648,7 +662,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         int cpuQuark = entry.getQuark();
         long time = event.getTime();
         if (ss == null) {
-            return false;
+            // return false;
+            return fDimAlpha;
         }
         try {
             ITmfStateInterval interval;
@@ -662,16 +677,24 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             value = interval.getStateValue();
             int currentThreadID = value.unboxInt();
 
-            return highlightedTreads.contains(new Thread(machineName, currentThreadID));
+            // return highlightedTreads.containsValue(new Thread(machineName,
+            // currentThreadID));
+            Thread t = highlightedTreads.get(new Thread(machineName, currentThreadID));
+            if (t != null) {
+                return t.getAlpha();
+            }
+            return fDimAlpha;
 
         } catch (AttributeNotFoundException e) {
-//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            // Activator.getDefault().logError("Error in
+            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
 
-        return false;
+        // return false;
+        return fDimAlpha;
     }
 
     //
@@ -788,7 +811,12 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      *
      */
     public void setSelectedThread(String machineName, int threadID, String threadName) {
-        selectedThread = new Thread(machineName, threadID, threadName);
+        // selectedThread = new Thread(machineName, threadID, threadName);
+        Thread t = new Thread(machineName, threadID, threadName);
+        selectedThread = highlightedTreads.get(t);
+        if (selectedThread == null) {
+            selectedThread = t;
+        }
     }
 
     /**
@@ -796,7 +824,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      *
      * @return the highlightedTreads
      */
-    public Set<Thread> getHighlightedTreads() {
+    public Map<Thread, Thread> getHighlightedTreads() {
         return highlightedTreads;
     }
 
@@ -809,14 +837,14 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
      *         threads
      */
     public boolean isThreadSelected(String machineName, int tid) {
-        return highlightedTreads.contains(new Thread(machineName, tid));
+        return highlightedTreads.containsValue(new Thread(machineName, tid));
     }
 
     /**
      * Adds the selected thread to the list of highlighted threads
      */
     public void addHighlightedThread() {
-        highlightedTreads.add(selectedThread);
+        highlightedTreads.put(selectedThread, selectedThread);
     }
 
     /**
@@ -835,32 +863,34 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyTimeEventHighlight() {
-//        System.err.println("Destroying map");
-//        printMapTimeEventSize();
+        // System.err.println("Destroying map");
+        // printMapTimeEventSize();
         fTimeEventHighlight.clear();
     }
 
-//    public void printMapTimeEventSize() {
-//        System.err.println("Size of map: " + fTimeEventHighlight.size());
-//    }
+    // public void printMapTimeEventSize() {
+    // System.err.println("Size of map: " + fTimeEventHighlight.size());
+    // }
 
     @Override
     public int getEventAlpha(ITimeEvent event) {
-        int highlight = 255;
-        int dim = 55;
-        Boolean b = fTimeEventHighlight.get(event);
+        Integer b = fTimeEventHighlight.get(event);
         if (b != null) {
-            if (b) {
-                return highlight;
-            }
-            return dim;
+            return b;
         }
-        if (isMachineHighlighted(event) && isCpuHighlighted(event) || isProcessHighlighted(event)) {
-            fTimeEventHighlight.put(event, Boolean.TRUE);
-            return highlight;
+        int alpha = isProcessHighlighted(event);
+        if (isMachineHighlighted(event) && isCpuHighlighted(event)) {
+            alpha = fHighlightAlpha;
         }
-        fTimeEventHighlight.put(event, Boolean.FALSE);
-        return dim;
+        fTimeEventHighlight.put(event, alpha);
+        return alpha;
+    }
+
+    public void modifySelectedThreadAlpha(int delta) {
+        if (selectedThread != null) {
+            selectedThread.modifyAlpha(delta);
+        }
+
     }
 
 }
