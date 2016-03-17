@@ -2896,11 +2896,17 @@ public class TimeGraphControl extends TimeGraphBaseControl
         if (fDragState != DRAG_NONE || e.count == 0) {
             return;
         }
+        if ((e.stateMask & SWT.SHIFT) != 0 && (e.stateMask & SWT.CTRL) == 0) {
+            return;
+        }
+        if (fDragState != DRAG_NONE) {
+            return;
+        }
 
         /*
-         * On some platforms the mouse scroll event is sent to the
-         * control that has focus even if it is not under the cursor.
-         * Handle the event only if over the time graph control.
+         * On some platforms the mouse scroll event is sent to the control that
+         * has focus even if it is not under the cursor. Handle the event only
+         * if over the time graph control.
          */
         Point size = getSize();
         Rectangle bounds = new Rectangle(0, 0, size.x, size.y);

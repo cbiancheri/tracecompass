@@ -5,10 +5,12 @@ public class Processor {
     private String n;
     private Boolean highlighted;
     private Machine machine;
+    private int alpha;
 
     public Processor(String p, Machine m){
         n = p;
         highlighted = true;
+        alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
         machine = m;
     }
 
@@ -31,5 +33,9 @@ public class Processor {
 
     public String getNumber() {
         return n;
+    }
+
+    public int getAlpha() {
+        return alpha;
     }
 }

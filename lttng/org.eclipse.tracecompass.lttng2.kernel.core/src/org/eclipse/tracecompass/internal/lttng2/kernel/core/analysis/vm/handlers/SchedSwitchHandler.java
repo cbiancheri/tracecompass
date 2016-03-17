@@ -5,6 +5,7 @@ import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.LinuxValues;
@@ -30,6 +31,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
         VirtualMachine host = sp.getCurrentMachine(event);
+        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         if (host != null && host.isGuest()) {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
@@ -68,10 +70,13 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
 
         /* Set the current scheduled process on the relevant CPU */
         int currentCPUNode = KernelEventHandlerUtils.getCurrentCPUNode(cpu, ss);
-        setCpuProcess(ss, nextTid, timestamp, currentCPUNode);
+        ITmfStateValue stateProcess = setCpuProcess(ss, nextTid, timestamp, currentCPUNode);
 
         /* Set the status of the CPU itself */
-        setCpuStatus(ss, nextTid, newCurrentThreadNode, timestamp, currentCPUNode);
+        ITmfStateValue stateCpu = setCpuStatus(ss, nextTid, newCurrentThreadNode, timestamp, currentCPUNode);
+
+        cpuObject.setCurrentState(stateCpu);
+        cpuObject.setCurrentThread(stateProcess);
     }
 
     private static void setOldProcessStatus(ITmfStateSystemBuilder ss, Long prevState, Integer formerThreadNode, long timestamp) throws AttributeNotFoundException {
@@ -104,7 +109,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
 
     }
 
-    private static void setCpuStatus(ITmfStateSystemBuilder ss, Integer nextTid, Integer newCurrentThreadNode, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
+    private static ITmfStateValue setCpuStatus(ITmfStateSystemBuilder ss, Integer nextTid, Integer newCurrentThreadNode, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
         int quark;
         ITmfStateValue value;
         if (nextTid > 0) {
@@ -133,15 +138,17 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
             quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
             ss.modifyAttribute(timestamp, value, quark);
         }
+        return value;
 
     }
 
-    private static void setCpuProcess(ITmfStateSystemBuilder ss, Integer nextTid, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
+    private static ITmfStateValue setCpuProcess(ITmfStateSystemBuilder ss, Integer nextTid, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
         int quark;
         ITmfStateValue value;
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         value = TmfStateValue.newValueInt(nextTid);
         ss.modifyAttribute(timestamp, value, quark);
+        return value;
     }
 
     private static void setNewProcessPio(ITmfStateSystemBuilder ss, Integer nextPrio, Integer newCurrentThreadNode, long timestamp) throws AttributeNotFoundException {

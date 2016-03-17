@@ -5,8 +5,10 @@ import java.util.Set;
 
 
 public class Machine {
+
     private String machineName;
     private Boolean highlighted;
+    private int alpha;
     private Set<Processor> cpus = new HashSet<>();
 
     public Machine(String name) {
@@ -17,6 +19,7 @@ public class Machine {
     public Machine(String name, Integer nbCPUs) {
         machineName = name;
         highlighted = true;
+        alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
         for (Integer i = 0; i < nbCPUs; i++) {
             cpus.add(new Processor(i.toString(), this));
         }
@@ -24,6 +27,10 @@ public class Machine {
 
     public String getMachineName() {
         return machineName;
+    }
+
+    public int getAlpha() {
+        return alpha;
     }
 
     public void addCpu(String cpu) {
@@ -36,6 +43,11 @@ public class Machine {
 
     public void setHighlightedWithAllCpu(Boolean b) {
         highlighted = b;
+        if (b) {
+            alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
+        } else {
+            alpha = FusedVMViewPresentationProvider.fDimAlpha;
+        }
         for (Processor p : cpus) {
             p.setHighlighted(b);
         }

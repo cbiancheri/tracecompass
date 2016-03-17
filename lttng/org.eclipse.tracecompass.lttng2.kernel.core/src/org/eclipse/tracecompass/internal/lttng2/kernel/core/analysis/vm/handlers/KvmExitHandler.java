@@ -50,11 +50,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
          * Get the host thread to get the right virtual machine.
          */
         long timestamp = KernelEventHandlerUtils.getTimestamp(event);
-        HostThread ht = sp.getCurrentHostThread(event, timestamp);
-        if (ht == null) {
-            return;
-        }
-        VirtualCPU vcpu = sp.getVCpuEnteringHypervisorMode(event, ht);
+        value = hostCpu.getCurrentThread();
+        HostThread ht = new HostThread(host.getHostId(), value.unboxInt());
+        VirtualCPU vcpu = sp.getVirtualCpu(ht);
         if (vcpu == null) {
             return;
         }
@@ -66,20 +64,22 @@ public class KvmExitHandler extends VMKernelEventHandler {
         }
 
         /*
-         * When the states of the vm and the host are the same the
-         * transition is not detected by the view so we add a false
-         * state that lasts 1 ns to make the transition visible.
-         * TODO: Find a better way to handle this problem.
+         * When the states of the vm and the host are the same the transition is
+         * not detected by the view so we add a false state that lasts 1 ns to
+         * make the transition visible. TODO: Find a better way to handle this
+         * problem.
          */
         /* Then the current state of the host is restored. */
         if (hostCpu.getCurrentState() == vcpu.getCurrentState()) {
             value = StateValues.CPU_STATUS_IN_VM_VALUE;
-            ss.modifyAttribute(timestamp - 1, value, quark);
+             ss.modifyAttribute(timestamp - 1, value, quark);
+//            ss.modifyAttribute(timestamp, value, quark);
             value = hostCpu.getCurrentState();
-            ss.modifyAttribute(timestamp, value, quark);
+             ss.modifyAttribute(timestamp, value, quark);
+//            ss.modifyAttribute(timestamp + 1, value, quark);
         } else {
-            value = hostCpu.getCurrentState();
-            ss.modifyAttribute(timestamp, value, quark);
+             value = hostCpu.getCurrentState();
+             ss.modifyAttribute(timestamp, value, quark);
         }
 
         /*
@@ -99,7 +99,6 @@ public class KvmExitHandler extends VMKernelEventHandler {
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
         value = StateValues.CONDITION_OUT_VM_VALUE;
         ss.modifyAttribute(timestamp, value, quark);
-
 
     }
 
