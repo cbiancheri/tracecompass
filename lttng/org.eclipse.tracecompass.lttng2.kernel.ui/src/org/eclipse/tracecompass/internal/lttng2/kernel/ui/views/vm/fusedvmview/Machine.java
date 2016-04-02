@@ -3,6 +3,8 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
+
 
 public class Machine {
 
@@ -10,16 +12,18 @@ public class Machine {
     private Boolean highlighted;
     private int alpha;
     private Set<Processor> cpus = new HashSet<>();
+    private ITmfStateValue typeMachine;
 
     public Machine(String name) {
         machineName = name;
         highlighted = true;
     }
 
-    public Machine(String name, Integer nbCPUs) {
+    public Machine(String name, Integer nbCPUs, ITmfStateValue type) {
         machineName = name;
         highlighted = true;
         alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
+        typeMachine = type;
         for (Integer i = 0; i < nbCPUs; i++) {
             cpus.add(new Processor(i.toString(), this));
         }
@@ -31,6 +35,10 @@ public class Machine {
 
     public int getAlpha() {
         return alpha;
+    }
+
+    public ITmfStateValue getTypeMachine() {
+        return typeMachine;
     }
 
     public void addCpu(String cpu) {

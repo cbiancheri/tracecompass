@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2014 École Polytechnique de Montréal
+ * Copyright (c) 2015 École Polytechnique de Montréal
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v1.0 which
@@ -16,9 +16,9 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.osgi.util.NLS;
 
 /**
- * Externalized message strings from the LTTng Kernel Analysis
+ * Externalized message strings from the Fused VM Analysis
  *
- * @author Geneviève Bastien
+ * @author Cédric Biancheri
  */
 @SuppressWarnings("javadoc")
 public class Messages extends NLS {

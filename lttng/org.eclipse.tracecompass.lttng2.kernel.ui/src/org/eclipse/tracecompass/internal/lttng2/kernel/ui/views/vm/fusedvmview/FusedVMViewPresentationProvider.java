@@ -13,6 +13,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelTrace;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.Messages;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
@@ -144,12 +145,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         private State(RGB rgb) {
             this.rgb = rgb;
         }
-
-        // public static State highLightState(State state) {
-        // int n = state.ordinal();
-        // return State.values()[n - 1];
-        // }
-
     }
 
     /**
@@ -184,11 +179,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     state = State.IN_VM;
                 }
                 if (state != null) {
-                    /* Add here your condition to highlight */
-                    // if (isMachineHighlighted(event) &&
-                    // isCpuHighlighted(event) || isProcessHighlighted(event)) {
-                    // return State.highLightState(state);
-                    // }
                     return state;
                 }
 
@@ -588,8 +578,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         if (machine == null) {
             return false;
         }
-        Boolean res = machine.isHighlighted();
-        return res;
+        return machine.isHighlighted();
     }
 
     /**
@@ -645,6 +634,64 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             /* Ignored */
         }
         return false;
+    }
+
+    private boolean isContainerHighlighted(ITimeEvent event) {
+        Map<String, Machine> map = getHighlightedMachines();
+        boolean allDim = true;
+        boolean allHighlighted = true;
+        for (Machine m : map.values()) {
+            if (m.isHighlighted()) {
+                allDim = false;
+            } else {
+                allHighlighted = false;
+            }
+        }
+        if (allDim) {
+            return false;
+        } else if (allHighlighted) {
+            return true;
+        }
+        FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
+        ITmfTrace trace = entry.getTrace();
+        ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
+        int cpuQuark = entry.getQuark();
+        long time = event.getTime();
+        if (ss == null) {
+            return false;
+        }
+        String machineName = null;
+        String nsID = null;
+        try {
+            ITmfStateInterval interval;
+            int machineNameQuark = ss.getQuarkRelative(cpuQuark, Attributes.MACHINE_NAME);
+            interval = ss.querySingleState(time, machineNameQuark);
+            ITmfStateValue value = interval.getStateValue();
+            machineName = value.unboxStr();
+            int quark = ss.getQuarkRelative(cpuQuark, Attributes.CURRENT_THREAD);
+            interval = ss.querySingleState(time, quark);
+            int tid = interval.getStateValue().unboxInt();
+            quark = ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss), machineName, Integer.toString(tid), "ns_max_level");
+            interval = ss.querySingleState(time, quark);
+            quark = ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss), machineName, Integer.toString(tid));
+            int nsMaxLevel = interval.getStateValue().unboxInt();
+            for (int i = 1; i < nsMaxLevel; i++) {
+                quark = ss.getQuarkRelative(quark, "VTID");
+            }
+            quark = ss.getQuarkRelative(quark, "ns_inum");
+            nsID = Long.toString(ss.querySingleState(time, quark).getStateValue().unboxLong());
+    } catch (AttributeNotFoundException e) {
+        // Activator.getDefault().logError("Error in
+        // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+        /* Can happen for events at the beginning of the trace */
+    } catch (StateSystemDisposedException e) {
+        /* Ignored */
+    }
+        Machine machine = map.get(nsID);
+        if (machine == null) {
+            return false;
+        }
+        return machine.isHighlighted();
     }
 
     /**
@@ -863,14 +910,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyTimeEventHighlight() {
-        // System.err.println("Destroying map");
-        // printMapTimeEventSize();
         fTimeEventHighlight.clear();
     }
-
-    // public void printMapTimeEventSize() {
-    // System.err.println("Size of map: " + fTimeEventHighlight.size());
-    // }
 
     @Override
     public int getEventAlpha(ITimeEvent event) {
@@ -879,7 +920,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             return b;
         }
         int alpha = isProcessHighlighted(event);
-        if (isMachineHighlighted(event) && isCpuHighlighted(event)) {
+        if ((isMachineHighlighted(event) && isCpuHighlighted(event)) || isContainerHighlighted(event)) {
             alpha = fHighlightAlpha;
         }
         fTimeEventHighlight.put(event, alpha);

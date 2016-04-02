@@ -30,6 +30,7 @@ public interface Attributes {
 
     /* Sub-attributes of the Thread nodes */
     String PPID = "PPID";
+    String VTID = "VTID";
     //static final String STATUS = "Status"
     String EXEC_NAME = "Exec_name";
 

@@ -35,6 +35,12 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
             childNSInum = -1;
         } else {
             childNSInum = (Long) field.getValue();
+            /* Save the namespace id somewhere so it can be reused */
+            int quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), Long.toString(childNSInum));
+            if (ss.queryOngoingState(quark).isNull()) {
+                ITmfStateValue machineState = org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues.MACHINE_CONTAINER_VALUE;
+                ss.modifyAttribute(event.getTrace().getStartTime().getValue(), machineState, quark);
+            }
         }
         long parentNSInum;
         field = content.getField("parent_ns_inum"); //$NON-NLS-1$

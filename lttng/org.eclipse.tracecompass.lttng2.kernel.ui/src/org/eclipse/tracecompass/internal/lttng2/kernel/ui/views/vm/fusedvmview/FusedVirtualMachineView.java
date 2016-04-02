@@ -365,7 +365,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         /* Remove highlighted machines from other analysis. */
         presentationProvider.destroyHightlightedMachines();
         for (String s : FusedVMInformationProvider.getMachinesTraced(ssq)) {
-            Machine machine = new Machine(s, FusedVMInformationProvider.getNbCPUs(ssq, s));
+            ITmfStateValue machineType = FusedVMInformationProvider.getTypeMachine(ssq, s);
+            Machine machine = new Machine(s, FusedVMInformationProvider.getNbCPUs(ssq, s), machineType);
             presentationProvider.getHighlightedMachines().put(machine.getMachineName(), machine);
         }
 
