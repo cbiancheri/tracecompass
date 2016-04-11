@@ -27,9 +27,18 @@ public class FusedVMInformationProvider {
     }
 
     public static Integer getNbCPUs(ITmfStateSystem ssq, String machineName) {
-        List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, "*"); //$NON-NLS-1$
+        List<Integer> vCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, Attributes.CPUS, "*"); //$NON-NLS-1$
         return vCpuquarks.size();
     }
+
+    public static List<String> getMachineContainers(ITmfStateSystem ssq, String machineName) {
+            List<String> containers = new LinkedList<>();
+            List<Integer> containersQuark = ssq.getQuarks(Attributes.MACHINES, machineName, Attributes.CONTAINERS, "*");
+            for (Integer containerQuark : containersQuark) {
+                containers.add(ssq.getAttributeName(containerQuark));
+            }
+            return containers;
+        }
 
     public static int getNodeThreadsAndAdd(ITmfStateSystemBuilder ssq) {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.THREADS);
@@ -58,6 +67,18 @@ public class FusedVMInformationProvider {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public static int saveContainerThreadID(ITmfStateSystemBuilder ss, int quark,int tid) {
+        return ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Integer.toString(tid));
+    }
+
+//    public static int saveContainerThreadID(ITmfStateSystemBuilder ss, int quark, long vtid) {
+//        return ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Long.toString(vtid));
+//    }
+
+    public static int getMachineCPUsNode(ITmfStateSystemBuilder ssq, String machineName) {
+        return ssq.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.CPUS);
     }
 
 }

@@ -1,11 +1,11 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.LinuxValues;
 import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.StateValues;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandler;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
@@ -55,13 +55,18 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         int quark;
         ITmfStateValue value;
         for (int i = 0; i < nsLevel; i++) {
-            layerNode = ss.getQuarkRelativeAndAdd(layerNode, "VTID"); //$NON-NLS-1$
+            /* While we can go deeper we create an other level */
+            layerNode = ss.getQuarkRelativeAndAdd(layerNode, Attributes.VTID);
             if (i + 1 == nsLevel) {
+                /*
+                 * If the next layer is the last we can add the info contained
+                 * in the event
+                 */
                 value = TmfStateValue.newValueInt(vtid);
                 ss.modifyAttribute(ts, value, layerNode);
             }
-            ss.getQuarkRelativeAndAdd(layerNode, "VPPID"); //$NON-NLS-1$
-            quark = ss.getQuarkRelativeAndAdd(layerNode, "ns_level"); //$NON-NLS-1$
+            ss.getQuarkRelativeAndAdd(layerNode, Attributes.VPPID);
+            quark = ss.getQuarkRelativeAndAdd(layerNode, Attributes.NS_LEVEL);
             if (ss.queryOngoingState(quark).isNull()) {
                 /* If the value didn't exist previously, set it */
                 value = TmfStateValue.newValueInt(i + 1);
@@ -106,7 +111,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
          * Set the max level, only at level 0. This can be useful to know the
          * depth of the hierarchy.
          */
-        quark = ss.getQuarkRelativeAndAdd(threadNode, "ns_max_level"); //$NON-NLS-1$
+        quark = ss.getQuarkRelativeAndAdd(threadNode, Attributes.NS_MAX_LEVEL);
         if (ss.queryOngoingState(quark).isNull()) {
             /*
              * Events are coming from the deepest layers first so no need to
@@ -115,6 +120,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
             value = TmfStateValue.newValueInt(nsLevel + 1);
             ss.modifyAttribute(ts, value, quark);
         }
+        int maxLevel = ss.queryOngoingState(quark).unboxInt();
 
         /*
          * Set the process' status. Only for level 0.
@@ -182,7 +188,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         }
 
         /* Set the namespace level */
-        quark = ss.getQuarkRelativeAndAdd(layerNode, "ns_level"); //$NON-NLS-1$
+        quark = ss.getQuarkRelativeAndAdd(layerNode, Attributes.NS_LEVEL);
         if (ss.queryOngoingState(quark).isNull()) {
             /* If the value didn't exist previously, set it */
             value = TmfStateValue.newValueInt(nsLevel);
@@ -190,7 +196,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         }
 
         /* Set the namespace identification number */
-        quark = ss.getQuarkRelativeAndAdd(layerNode, "ns_inum"); //$NON-NLS-1$
+        quark = ss.getQuarkRelativeAndAdd(layerNode, Attributes.NS_INUM);
         if (ss.queryOngoingState(quark).isNull()) {
             /* If the value didn't exist previously, set it */
             value = TmfStateValue.newValueLong(nsInum);
@@ -198,10 +204,30 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         }
 
         /* Save the namespace id somewhere so it can be reused */
-        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), Long.toString(nsInum));
-        if (ss.queryOngoingState(quark).isNull()) {
-            ITmfStateValue machineState = org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues.MACHINE_CONTAINER_VALUE;
-            ss.modifyAttribute(event.getTrace().getStartTime().getValue(), machineState, quark);
+        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum));
+
+        /* Save the tid in the container. We also keep the vtid */
+        quark = ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Integer.toString(tid));
+        ss.modifyAttribute(ts, TmfStateValue.newValueInt(vtid), quark);
+
+        if (nsLevel != maxLevel - 1) {
+            /*
+             * We are not at the deepest level. So this namespace is the father
+             * of the namespace one layer deeper. We are going to tell him we
+             * found his father. That will make him happy.
+             */
+            quark = ss.getQuarkRelativeAndAdd(layerNode, Attributes.VTID, Attributes.NS_INUM);
+            Long childNSInum = ss.queryOngoingState(quark).unboxLong();
+            if (childNSInum > 0) {
+                quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(childNSInum), Attributes.PARENT);
+                ss.modifyAttribute(ss.getStartTime(), TmfStateValue.newValueLong(nsInum), quark);
+            }
+        }
+
+        if (nsLevel == 0) {
+            /* Root namespace => no parent */
+            quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum), Attributes.PARENT);
+            ss.modifyAttribute(ss.getStartTime(), TmfStateValue.newValueLong(-1), quark);
         }
 
     }

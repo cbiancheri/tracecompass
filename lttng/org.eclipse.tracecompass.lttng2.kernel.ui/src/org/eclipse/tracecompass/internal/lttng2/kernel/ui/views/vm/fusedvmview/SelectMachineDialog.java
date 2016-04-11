@@ -7,7 +7,6 @@ import java.util.Set;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.TitleAreaDialog;
-import org.eclipse.jface.viewers.AbstractTreeViewer;
 import org.eclipse.jface.viewers.CheckStateChangedEvent;
 import org.eclipse.jface.viewers.CheckboxTreeViewer;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
@@ -22,19 +21,22 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorContentProvider;
 import org.eclipse.tracecompass.tmf.ui.project.model.TmfNavigatorLabelProvider;
 import org.eclipse.ui.dialogs.FilteredTree;
 import org.eclipse.ui.dialogs.PatternFilter;
 
+/**
+ * @author Cédric Biancheri
+ *
+ */
 public class SelectMachineDialog extends TitleAreaDialog {
 
     private final FusedVMViewPresentationProvider provider;
     private CheckboxTreeViewer fCheckboxTreeViewer;
     private TmfNavigatorContentProvider fContentProvider;
     private TmfNavigatorLabelProvider fLabelProvider;
-    // private final LocalResourceManager fResourceManager = new
-    // LocalResourceManager(JFaceResources.getResources());
 
     /**
      * Open the select machines window
@@ -96,7 +98,11 @@ public class SelectMachineDialog extends TitleAreaDialog {
             @Override
             public Object getParent(Object element) {
                 if (element instanceof Machine) {
-                    return null;
+                    Machine host = ((Machine) element).getHost();
+                    if (host != null) {
+                        return host;
+                    }
+                    return element;
                 } else if (element instanceof Processor) {
                     return ((Processor) element).getMachine();
                 }
@@ -114,7 +120,13 @@ public class SelectMachineDialog extends TitleAreaDialog {
                     return ((List<?>) parentElement).toArray();
                 } else if (parentElement instanceof Machine) {
                     Machine m = (Machine) parentElement;
-                    return m.getCpus().toArray();
+                    Set<Processor> cpus = m.getCpus();
+                    if (!cpus.isEmpty()) {
+                        Object[] array = { cpus, m.getContainers() };
+                        return array;
+                    }
+                } else if (parentElement instanceof Set) {
+                    return ((Set<?>) parentElement).toArray();
                 }
                 return null;
             }
@@ -130,6 +142,18 @@ public class SelectMachineDialog extends TitleAreaDialog {
         fLabelProvider = new TmfNavigatorLabelProvider() {
             @Override
             public String getText(Object arg0) {
+                if (arg0 instanceof Set<?>) {
+                    Set<?> set = (Set<?>) arg0;
+                    if (!set.isEmpty()) {
+                        for (Object o : set) {
+                            if (o instanceof Machine) {
+                                return Attributes.CONTAINERS;
+                            } else if (o instanceof Processor) {
+                                return Attributes.CPUS;
+                            }
+                        }
+                    }
+                }
                 return arg0.toString();
             }
         };
@@ -167,20 +191,25 @@ public class SelectMachineDialog extends TitleAreaDialog {
             @Override
             public void checkStateChanged(CheckStateChangedEvent event) {
                 Object element = event.getElement();
+                Object root = null;
                 if (element instanceof Machine) {
                     Machine m = (Machine) element;
-                    m.setHighlighted(event.getChecked());
-                    if (!event.getChecked()) {
-                        fCheckboxTreeViewer.setGrayed(element, false);
-                    }
-                    Boolean isExpanded = fCheckboxTreeViewer.getExpandedState(element);
-                    fCheckboxTreeViewer.expandToLevel(element, AbstractTreeViewer.ALL_LEVELS);
-                    fCheckboxTreeViewer.setSubtreeChecked(element, event.getChecked());
-                    if (!isExpanded) {
-                        fCheckboxTreeViewer.collapseToLevel(element, AbstractTreeViewer.ALL_LEVELS);
-                    }
-                    for (Processor cpu : m.getCpus()) {
-                        cpu.setHighlighted(event.getChecked());
+                    Machine host = m.getHost();
+                    if (host == null) {
+                        /* We are the root of a machine */
+                        m.setHighlighted(event.getChecked());
+                        Set<Processor> cpus = m.getCpus();
+                        for (Processor cpu : cpus) {
+                            cpu.setHighlighted(event.getChecked());
+                        }
+                        Set<Machine> containers = m.getContainers();
+                        for (Machine container : containers) {
+                            container.setHighlighted(event.getChecked());
+                        }
+                    } else {
+                        /* We are at a container */
+                        m.setHighlighted(event.getChecked());
+                        host.setHighlighted(host.isChecked());
                     }
                 } else if (element instanceof Processor) {
                     Boolean checked = event.getChecked();
@@ -188,24 +217,34 @@ public class SelectMachineDialog extends TitleAreaDialog {
                     Object ancestor = fContentProvider.getParent(element);
                     if (ancestor instanceof Machine) {
                         Machine m = (Machine) ancestor;
-                        fCheckboxTreeViewer.setGrayed(m, m.isGrayed());
-                        fCheckboxTreeViewer.setChecked(m, m.isOneCpuHighlighted());
-                        m.setHighlighted(m.isOneCpuHighlighted());
+                        m.setHighlighted(m.isChecked());
+                    }
+                } else if (element instanceof Set<?>) {
+                    /* We are looking at a set of containers or cpus */
+                    Set<?> set = (Set<?>) element;
+                    if (!set.isEmpty()) {
+                        for (Object o : set) {
+                            if (o instanceof Machine) {
+                                ((Machine) o).setHighlighted(event.getChecked());
+                            } else if (o instanceof Processor) {
+                                ((Processor) o).setHighlighted(event.getChecked());
+                            }
+                            root = fContentProvider.getParent(o);
+                        }
                     }
                 }
+                if (root == null) {
+                    root = fContentProvider.getParent(element);
+                }
+                /* Update the view because the selection changed */
+                updateCheckedNodes(root);
             }
         });
 
-        fCheckboxTreeViewer.expandAll();
+        /* Initial setting of the checked state when we open the dialog */
         for (Machine m : listMachines) {
-            fCheckboxTreeViewer.setChecked(m, m.isHighlighted());
-            Set<Processor> cpus = m.getCpus();
-            for (Processor cpu : cpus) {
-                fCheckboxTreeViewer.setChecked(cpu, cpu.isHighlighted());
-            }
-            fCheckboxTreeViewer.setGrayed(m, m.isGrayed());
+            updateCheckedNodes(m);
         }
-        fCheckboxTreeViewer.collapseAll();
 
         return fCheckboxTreeViewer;
     }
@@ -214,6 +253,64 @@ public class SelectMachineDialog extends TitleAreaDialog {
     protected void createButtonsForButtonBar(Composite parent) {
         createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL,
                 true);
+    }
+
+    /**
+     * Method used to update the checked state of each node of the tree. Call
+     * this if you modified the model under a specific node.
+     *
+     * @param node
+     *            The node frome where the model has been changed.
+     */
+    private void updateCheckedNodes(Object node) {
+        Boolean isExpanded = fCheckboxTreeViewer.getExpandedState(node);
+        fCheckboxTreeViewer.expandToLevel(node, 1);
+        if (node instanceof Machine) {
+            Machine m = (Machine) node;
+            Machine host = m.getHost();
+
+            fCheckboxTreeViewer.setChecked(m, m.isHighlighted());
+            fCheckboxTreeViewer.setGrayed(m, m.isGrayed());
+
+            if (host == null) {
+                /* We are the root of a machine */
+                Set<Processor> cpus = m.getCpus();
+                updateCheckedNodes(cpus);
+                Set<Machine> containers = m.getContainers();
+                updateCheckedNodes(containers);
+                Boolean isSetExpanded = fCheckboxTreeViewer.getExpandedState(cpus);
+                fCheckboxTreeViewer.expandToLevel(cpus, 1);
+                fCheckboxTreeViewer.setChecked(cpus, m.isOneCpuHighlighted());
+                fCheckboxTreeViewer.setGrayed(cpus, m.cpusNodeIsGrayed());
+                updateCheckedNodes(cpus);
+                if (!isSetExpanded) {
+                    fCheckboxTreeViewer.collapseToLevel(cpus, 1);
+                }
+
+                isSetExpanded = fCheckboxTreeViewer.getExpandedState(containers);
+                fCheckboxTreeViewer.expandToLevel(containers, 1);
+                fCheckboxTreeViewer.setChecked(containers, m.isOneContainerHighlighted());
+                fCheckboxTreeViewer.setGrayed(containers, m.containersNodeIsGrayed());
+                updateCheckedNodes(containers);
+                if (!isSetExpanded) {
+                    fCheckboxTreeViewer.collapseToLevel(containers, 1);
+                }
+
+            }
+        } else if (node instanceof Processor) {
+            Processor p = (Processor) node;
+            fCheckboxTreeViewer.setChecked(p, p.isHighlighted());
+        } else if (node instanceof Set<?>) {
+            Set<?> set = (Set<?>) node;
+            if (!set.isEmpty()) {
+                for (Object o : set) {
+                    updateCheckedNodes(o);
+                }
+            }
+        }
+        if (!isExpanded) {
+            fCheckboxTreeViewer.collapseToLevel(node, 1);
+        }
     }
 
 }

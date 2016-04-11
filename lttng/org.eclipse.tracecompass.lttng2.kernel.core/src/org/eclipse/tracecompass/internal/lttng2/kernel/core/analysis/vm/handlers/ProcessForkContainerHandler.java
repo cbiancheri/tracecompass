@@ -1,10 +1,11 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.StateValues;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
@@ -36,11 +37,7 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
         } else {
             childNSInum = (Long) field.getValue();
             /* Save the namespace id somewhere so it can be reused */
-            int quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), Long.toString(childNSInum));
-            if (ss.queryOngoingState(quark).isNull()) {
-                ITmfStateValue machineState = org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues.MACHINE_CONTAINER_VALUE;
-                ss.modifyAttribute(event.getTrace().getStartTime().getValue(), machineState, quark);
-            }
+            ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(childNSInum));
         }
         long parentNSInum;
         field = content.getField("parent_ns_inum"); //$NON-NLS-1$
@@ -92,22 +89,28 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
          * Set the max level. It is useful if we want to know the depth of the
          * hierarchy
          */
-        quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_max_level");
+        quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_MAX_LEVEL);
         value = TmfStateValue.newValueInt(maxLevel);
         ss.modifyAttribute(timestamp, value, quark);
 
         for (long vtid : childVTIDs) {
             if (vtid == childTid) {
                 /* Set the namespace level */
-                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_level");
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_LEVEL);
                 value = TmfStateValue.newValueInt(level);
                 ss.modifyAttribute(timestamp, value, quark);
 
                 /* Set the namespace ID */
-                quark = ss.getQuarkRelative(parentTidNode, "ns_inum");
+                quark = ss.getQuarkRelative(parentTidNode, Attributes.NS_INUM);
                 value = ss.queryOngoingState(quark);
-                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_INUM);
                 ss.modifyAttribute(timestamp, value, quark);
+
+                /* Save the tid */
+                quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(value.unboxLong()));
+                quark = FusedVMInformationProvider.saveContainerThreadID(ss, quark, childTid);
+                ss.modifyAttribute(timestamp, TmfStateValue.newValueLong(vtid), quark);
+
                 /* Nothing else to do at the level 0 */
                 continue;
             }
@@ -132,10 +135,15 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
                 ss.modifyAttribute(timestamp, value, quark);
 
                 /* Set the ns_inum attribute for the child */
-                quark = ss.getQuarkRelative(parentTidNode, "ns_inum");
+                quark = ss.getQuarkRelative(parentTidNode, Attributes.NS_INUM);
                 value = ss.queryOngoingState(quark);
-                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_INUM);
                 ss.modifyAttribute(timestamp, value, quark);
+
+                /* Save the tid */
+                quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(value.unboxLong()));
+                quark = FusedVMInformationProvider.saveContainerThreadID(ss, quark, childTid);
+                ss.modifyAttribute(timestamp, TmfStateValue.newValueLong(vtid), quark);
             } else {
                 /* Last level and new namespace */
 
@@ -151,12 +159,23 @@ public class ProcessForkContainerHandler extends VMKernelEventHandler {
 
                 /* Set the ns_inum attribute for the child */
                 value = TmfStateValue.newValueLong(childNSInum);
-                quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_inum");
+                quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_INUM);
                 ss.modifyAttribute(timestamp, value, quark);
+
+                /* Save the tid */
+                int quarkContainer = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(childNSInum));
+                quark = FusedVMInformationProvider.saveContainerThreadID(ss, quarkContainer, childTid);
+                ss.modifyAttribute(timestamp, TmfStateValue.newValueLong(vtid), quark);
+
+                /* Save the parent's namespace ID */
+                quark = ss.getQuarkRelativeAndAdd(quarkContainer, Attributes.PARENT);
+                if (ss.queryOngoingState(quark).isNull()) {
+                    ss.modifyAttribute(ss.getStartTime(), TmfStateValue.newValueLong(parentNSInum), quark);
+                }
             }
 
             /* Set the ns_level attribute for the child */
-            quark = ss.getQuarkRelativeAndAdd(childTidNode, "ns_level");
+            quark = ss.getQuarkRelativeAndAdd(childTidNode, Attributes.NS_LEVEL);
             value = TmfStateValue.newValueInt(level);
             ss.modifyAttribute(timestamp, value, quark);
         }
