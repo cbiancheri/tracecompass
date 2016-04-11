@@ -31,8 +31,18 @@ public interface Attributes {
     /* Sub-attributes of the Thread nodes */
     String PPID = "PPID";
     String VTID = "VTID";
+    String VPPID = "VPPID";
     //static final String STATUS = "Status"
     String EXEC_NAME = "Exec_name";
+    String NS_LEVEL = "ns_level";
+    String NS_INUM = "ns_inum";
+    String NS_MAX_LEVEL = "ns_max_level";
+
+    /* Sub-attributes of a Machine */
+    String CONTAINERS = "Containers";
+
+    /* Sub-attributes of a Container */
+    String PARENT = "Parent";
 
     /** @since 1.0 */
     String PRIO = "Prio";

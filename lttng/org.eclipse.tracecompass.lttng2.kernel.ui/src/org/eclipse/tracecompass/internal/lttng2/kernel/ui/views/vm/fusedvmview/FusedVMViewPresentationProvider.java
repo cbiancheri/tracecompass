@@ -638,20 +638,20 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 
     private boolean isContainerHighlighted(ITimeEvent event) {
         Map<String, Machine> map = getHighlightedMachines();
-        boolean allDim = true;
-        boolean allHighlighted = true;
-        for (Machine m : map.values()) {
-            if (m.isHighlighted()) {
-                allDim = false;
-            } else {
-                allHighlighted = false;
-            }
-        }
-        if (allDim) {
-            return false;
-        } else if (allHighlighted) {
-            return true;
-        }
+//        boolean allDim = true;
+//        boolean allHighlighted = true;
+//        for (Machine m : map.values()) {
+//            if (m.isHighlighted()) {
+//                allDim = false;
+//            } else {
+//                allHighlighted = false;
+//            }
+//        }
+//        if (allDim) {
+//            return false;
+//        } else if (allHighlighted) {
+//            return true;
+//        }
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
         ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
@@ -680,18 +680,21 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             }
             quark = ss.getQuarkRelative(quark, "ns_inum");
             nsID = Long.toString(ss.querySingleState(time, quark).getStateValue().unboxLong());
-    } catch (AttributeNotFoundException e) {
-        // Activator.getDefault().logError("Error in
-        // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
-        /* Can happen for events at the beginning of the trace */
-    } catch (StateSystemDisposedException e) {
-        /* Ignored */
-    }
-        Machine machine = map.get(nsID);
-        if (machine == null) {
+        } catch (AttributeNotFoundException e) {
+            // Activator.getDefault().logError("Error in
+            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            /* Can happen for events at the beginning of the trace */
+        } catch (StateSystemDisposedException e) {
+            /* Ignored */
+        }
+        Machine machine = map.get(machineName);
+        if (machine == null || nsID == null) {
             return false;
         }
-        return machine.isHighlighted();
+        if (machine.isContainerHighlighted(nsID)) {
+            return true;
+        }
+        return false;
     }
 
     /**

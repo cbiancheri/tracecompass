@@ -269,7 +269,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                      * This part is used to remember how many cpus a machine has
                      */
                     if (host != null && host.isGuest()) {
-                        ss.getQuarkRelativeAndAdd(machineNameQuark, currentVCpu.toString());
+                        ss.getQuarkRelativeAndAdd(machineNameQuark, Attributes.CPUS, currentVCpu.toString());
                         machineState = StateValues.MACHINE_GUEST_VALUE;
                     }
                 } else {
@@ -279,10 +279,10 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                      * be in a vm even if inVM == false
                      */
                     if (host != null && host.isGuest()) {
-                        ss.getQuarkRelativeAndAdd(machineNameQuark, currentVCpu.toString());
+                        ss.getQuarkRelativeAndAdd(machineNameQuark, Attributes.CPUS, currentVCpu.toString());
                         machineState = StateValues.MACHINE_GUEST_VALUE;
                     } else {
-                        ss.getQuarkRelativeAndAdd(quarkMachines, traceName, cpu.toString());
+                        ss.getQuarkRelativeAndAdd(quarkMachines, traceName, Attributes.CPUS, cpu.toString());
                         machineState = StateValues.MACHINE_HOST_VALUE;
                     }
 

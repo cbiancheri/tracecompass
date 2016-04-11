@@ -364,9 +364,13 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         /* All traces are highlighted by default. */
         /* Remove highlighted machines from other analysis. */
         presentationProvider.destroyHightlightedMachines();
-        for (String s : FusedVMInformationProvider.getMachinesTraced(ssq)) {
-            ITmfStateValue machineType = FusedVMInformationProvider.getTypeMachine(ssq, s);
-            Machine machine = new Machine(s, FusedVMInformationProvider.getNbCPUs(ssq, s), machineType);
+        for (String machineName : FusedVMInformationProvider.getMachinesTraced(ssq)) {
+            ITmfStateValue machineType = FusedVMInformationProvider.getTypeMachine(ssq, machineName);
+            Machine machine = new Machine(machineName, FusedVMInformationProvider.getNbCPUs(ssq, machineName), machineType);
+            /* Get all the containers for this machine */
+            for (String containerID : FusedVMInformationProvider.getMachineContainers(ssq, machineName)) {
+                machine.addContainer(Machine.createContainer(containerID, machine));
+            }
             presentationProvider.getHighlightedMachines().put(machine.getMachineName(), machine);
         }
 

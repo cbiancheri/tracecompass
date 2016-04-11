@@ -7,6 +7,7 @@ import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
@@ -84,8 +85,8 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          * If not already done, associate the TID in the host corresponding to
          * the vCPU inside the state system.
          */
-        int quarkMachines = FusedVirtualMachineStateProvider.getNodeMachines(ss);
-        int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkMachines, virtualMachine.getTraceName(), vcpu.getCpuId().toString());
+        int quarkVCPUs = FusedVMInformationProvider.getMachineCPUsNode(ss, virtualMachine.getTraceName());
+        int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkVCPUs, vcpu.getCpuId().toString());
         if (ss.queryOngoingState(quarkVCPU).isNull()) {
             ss.modifyAttribute(timestamp, TmfStateValue.newValueInt(thread), quarkVCPU);
         }
