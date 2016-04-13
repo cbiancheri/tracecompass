@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Messages;
+import org.eclipse.tracecompass.analysis.os.linux.core.trace.DefaultEventLayout;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelTrace;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
@@ -93,7 +93,7 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
             layout = ((IKernelTrace) trace.getChild(0)).getKernelEventLayout();
         } else {
             /* Fall-back to the base LttngEventLayout */
-            layout = IKernelAnalysisEventLayout.DEFAULT_LAYOUT;
+            layout = DefaultEventLayout.getInstance();
         }
         if (!(trace instanceof TmfExperiment)) {
             throw new IllegalStateException();
@@ -110,7 +110,7 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
 
     @Override
     protected String getFullHelpText() {
-        return NonNullUtils.nullToEmptyString(Messages.LttngKernelAnalysisModule_Help);
+        return NonNullUtils.nullToEmptyString(Messages.FusedVirtualMachineAnalysis_Help);
     }
 
     @Override

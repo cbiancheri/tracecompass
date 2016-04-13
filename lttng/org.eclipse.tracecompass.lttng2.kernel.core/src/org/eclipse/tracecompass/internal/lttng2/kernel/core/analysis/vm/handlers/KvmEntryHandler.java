@@ -62,9 +62,9 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          * Saves the state. Will be restored after a kvm_exit.
          */
         ITmfStateValue ongoingState = ss.queryOngoingState(quark);
-        if (ongoingState != null) {
+//        if (ongoingState != null) {
             hostCpu.setCurrentState(ongoingState);
-        }
+//        }
         /*
          * Get the host thread to get the right virtual machine.
          */
@@ -128,9 +128,9 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         ongoingState = ss.queryOngoingState(quark);
-        if (ongoingState != null) {
+//        if (ongoingState != null) {
             hostCpu.setCurrentThread(ongoingState);
-        }
+//        }
         /* Restore the thread of the VM that was running. */
         value = vcpu.getCurrentThread();
         ss.modifyAttribute(timestamp, value, quark);

@@ -129,16 +129,22 @@ public class TimeEvent implements ITimeEvent {
     public boolean equals(Object o){
         if (o instanceof TimeEvent) {
             TimeEvent event = (TimeEvent) o;
-            return fEntry.equals(event.getEntry()) && fTime == event.getTime();
+            if (fEntry != null && event.getEntry() != null) {
+                return fEntry.equals(event.getEntry()) && fTime == event.getTime();
+            }
+            return super.equals(o);
         }
         return false;
     }
 
     @Override
     public int hashCode() {
-        int hash = 1;
-        hash = hash * 31 + fEntry.hashCode();
-        hash = hash * 31 + (int) fTime;
-        return hash;
+        if (fEntry != null) {
+            int hash = 1;
+            hash = hash * 31 + fEntry.hashCode();
+            hash = hash * 31 + (int) fTime;
+            return hash;
+        }
+        return super.hashCode();
     }
 }

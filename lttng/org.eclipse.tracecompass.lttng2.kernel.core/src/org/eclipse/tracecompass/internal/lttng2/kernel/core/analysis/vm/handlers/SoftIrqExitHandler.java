@@ -4,6 +4,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
@@ -35,7 +36,7 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
         Integer softIrqId = ((Long) event.getContent().getField(getLayout().fieldVec()).getValue()).intValue();
         int currentThreadNode = FusedVirtualMachineStateProvider.getCurrentThreadNode(cpu, ss);
         /* Put this SoftIRQ back to inactive (= -1) in the resource tree */
-        int quark = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeSoftIRQs(ss), softIrqId.toString());
+        int quark = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeSoftIRQs(ss), softIrqId.toString());
         ITmfStateValue value = TmfStateValue.nullValue();
         long timestamp = KernelEventHandlerUtils.getTimestamp(event);
 

@@ -1,12 +1,13 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.StateValues;
+import org.eclipse.tracecompass.analysis.os.linux.core.kernel.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
@@ -52,7 +53,7 @@ public class IrqEntryHandler extends VMKernelEventHandler {
          * Mark this IRQ as active in the resource tree. The state value = the
          * CPU on which this IRQ is sitting
          */
-        int quark = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeIRQs(ss), irqId.toString());
+        int quark = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeIRQs(ss), irqId.toString());
 
         ITmfStateValue value = TmfStateValue.newValueInt(cpu.intValue());
         long timestamp = KernelEventHandlerUtils.getTimestamp(event);

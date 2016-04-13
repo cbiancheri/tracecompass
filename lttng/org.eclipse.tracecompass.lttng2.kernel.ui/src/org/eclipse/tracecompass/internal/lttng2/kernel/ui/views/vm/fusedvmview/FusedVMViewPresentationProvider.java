@@ -913,6 +913,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyTimeEventHighlight() {
+        System.err.println("TimeEvent count: " + fTimeEventHighlight.size());
         fTimeEventHighlight.clear();
     }
 

@@ -1,12 +1,13 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.StateValues;
+import org.eclipse.tracecompass.analysis.os.linux.core.kernel.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
@@ -43,7 +44,7 @@ public class SoftIrqEntryHandler extends VMKernelEventHandler {
          * Mark this SoftIRQ as active in the resource tree. The state value =
          * the CPU on which this SoftIRQ is processed
          */
-        int quark = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeSoftIRQs(ss), softIrqId.toString());
+        int quark = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeSoftIRQs(ss), softIrqId.toString());
         ITmfStateValue value = TmfStateValue.newValueInt(cpu.intValue());
         ss.modifyAttribute(timestamp, value, quark);
 

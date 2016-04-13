@@ -1,11 +1,12 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
+import org.eclipse.tracecompass.analysis.os.linux.core.kernel.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
@@ -37,7 +38,7 @@ public class IrqExitHandler extends VMKernelEventHandler {
         int currentThreadNode = FusedVirtualMachineStateProvider.getCurrentThreadNode(cpu, ss);
         Integer irqId = ((Long) event.getContent().getField(getLayout().fieldIrq()).getValue()).intValue();
         /* Put this IRQ back to inactive in the resource tree */
-        int quark = ss.getQuarkRelativeAndAdd(KernelEventHandlerUtils.getNodeIRQs(ss), irqId.toString());
+        int quark = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeIRQs(ss), irqId.toString());
         ITmfStateValue value = TmfStateValue.nullValue();
         long timestamp = KernelEventHandlerUtils.getTimestamp(event);
         ss.modifyAttribute(timestamp, value, quark);
