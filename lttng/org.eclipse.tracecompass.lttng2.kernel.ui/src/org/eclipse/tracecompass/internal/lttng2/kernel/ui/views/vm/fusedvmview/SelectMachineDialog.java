@@ -13,7 +13,7 @@ import org.eclipse.jface.viewers.ColumnLabelProvider;
 import org.eclipse.jface.viewers.ICheckStateListener;
 import org.eclipse.jface.viewers.TreeViewer;
 import org.eclipse.jface.viewers.TreeViewerColumn;
-import org.eclipse.jface.viewers.ViewerSorter;
+import org.eclipse.jface.viewers.ViewerComparator;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.layout.GridData;
@@ -158,7 +158,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
             }
         };
         fCheckboxTreeViewer.setLabelProvider(fLabelProvider);
-        fCheckboxTreeViewer.setSorter(new ViewerSorter());
+        fCheckboxTreeViewer.setComparator(new ViewerComparator());
 
         final Tree tree = fCheckboxTreeViewer.getTree();
         GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
