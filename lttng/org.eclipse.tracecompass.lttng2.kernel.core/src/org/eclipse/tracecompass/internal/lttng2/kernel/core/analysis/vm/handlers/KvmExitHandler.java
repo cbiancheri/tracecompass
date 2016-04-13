@@ -59,9 +59,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
 
         /* Save the state of the VCpu. */
         ITmfStateValue ongoingState = ss.queryOngoingState(quark);
-        if (ongoingState != null) {
+//        if (ongoingState != null) {
             vcpu.setCurrentState(ongoingState);
-        }
+//        }
 
         /*
          * When the states of the vm and the host are the same the transition is
@@ -87,9 +87,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
          */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         ongoingState = ss.queryOngoingState(quark);
-        if (ongoingState != null) {
+//        if (ongoingState != null) {
             vcpu.setCurrentThread(ongoingState);
-        }
+//        }
 
         /* Restore the thread of the host that was running. */
         value = hostCpu.getCurrentThread();

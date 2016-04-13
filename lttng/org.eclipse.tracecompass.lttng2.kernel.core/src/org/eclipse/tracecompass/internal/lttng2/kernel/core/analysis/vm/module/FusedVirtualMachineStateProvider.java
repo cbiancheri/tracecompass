@@ -18,8 +18,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.KernelAnalysisModule;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.KernelThreadInformationProvider;
 import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
@@ -58,7 +56,6 @@ import org.eclipse.tracecompass.tmf.core.statesystem.AbstractTmfStateProvider;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.core.trace.TmfTraceUtils;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
-import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperimentUtils;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -116,7 +113,8 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         fLayout = layout;
         fEventNames = buildEventNames(layout);
         fModel = new QemuKvmVmModel(experiment);
-        fContainerModel = new LxcModel(experiment);
+//        fContainerModel = new LxcModel(experiment);
+        fContainerModel = new LxcModel();
         fCpusInVM = new HashMap<>();
 
         fSysEntryHandler = new SysEntryHandler(fLayout, this);
@@ -394,28 +392,28 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         return ss.getQuarkRelativeAndAdd(getNodeThreads(ss, machineName), String.valueOf(thread));
     }
 
-    public @Nullable HostThread getCurrentHostThread(ITmfEvent event, long ts) {
-        /* Get the LTTng kernel analysis for the host */
-        String hostId = event.getTrace().getHostId();
-        @SuppressWarnings("null")
-        KernelAnalysisModule module = TmfExperimentUtils.getAnalysisModuleOfClassForHost(getTrace(), hostId, KernelAnalysisModule.class);
-        if (module == null) {
-            return null;
-        }
-
-        /* Get the CPU the event is running on */
-        @SuppressWarnings("null")
-        Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
-        if (cpu == null) {
-            /* We couldn't find any CPU information, ignore this event */
-            return null;
-        }
-        Integer currentTid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
-        if (currentTid == null) {
-            return null;
-        }
-        return new HostThread(hostId, currentTid);
-    }
+//    public @Nullable HostThread getCurrentHostThread(ITmfEvent event, long ts) {
+//        /* Get the LTTng kernel analysis for the host */
+//        String hostId = event.getTrace().getHostId();
+//        @SuppressWarnings("null")
+//        KernelAnalysisModule module = TmfExperimentUtils.getAnalysisModuleOfClassForHost(getTrace(), hostId, KernelAnalysisModule.class);
+//        if (module == null) {
+//            return null;
+//        }
+//
+//        /* Get the CPU the event is running on */
+//        @SuppressWarnings("null")
+//        Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
+//        if (cpu == null) {
+//            /* We couldn't find any CPU information, ignore this event */
+//            return null;
+//        }
+//        Integer currentTid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
+//        if (currentTid == null) {
+//            return null;
+//        }
+//        return new HostThread(hostId, currentTid);
+//    }
 
     private boolean isSyscallEntry(String eventName) {
         return (eventName.startsWith(fLayout.eventSyscallEntryPrefix())

@@ -1,11 +1,11 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.Attributes;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernelanalysis.StateValues;
+import org.eclipse.tracecompass.analysis.os.linux.core.kernel.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
@@ -39,12 +39,12 @@ public class SysExitHandler extends VMKernelEventHandler {
         long timestamp = KernelEventHandlerUtils.getTimestamp(event);
         ss.modifyAttribute(timestamp, value, quark);
 
-        /* Put the process in system call mode */
+        /* Put the process in user mode */
         quark = ss.getQuarkRelativeAndAdd(currentThreadNode, Attributes.STATUS);
         value = StateValues.PROCESS_STATUS_RUN_USERMODE_VALUE;
         ss.modifyAttribute(timestamp, value, quark);
 
-        /* Put the CPU in system call (kernel) mode */
+        /* Put the CPU in user mode */
         int currentCPUNode = KernelEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         value = StateValues.CPU_STATUS_RUN_USERMODE_VALUE;

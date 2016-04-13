@@ -81,4 +81,12 @@ public class FusedVMInformationProvider {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.CPUS);
     }
 
+    public static int getNodeIRQs(ITmfStateSystemBuilder ssq) {
+        return ssq.getQuarkAbsoluteAndAdd(Attributes.IRQS);
+    }
+
+    public static int getNodeSoftIRQs(ITmfStateSystemBuilder ssq) {
+        return ssq.getQuarkAbsoluteAndAdd(Attributes.SOFT_IRQS);
+    }
+
 }

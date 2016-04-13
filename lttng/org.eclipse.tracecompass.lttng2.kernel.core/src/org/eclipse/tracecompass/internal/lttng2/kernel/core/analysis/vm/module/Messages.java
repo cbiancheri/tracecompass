@@ -25,6 +25,7 @@ public class Messages extends NLS {
     private static final String BUNDLE_NAME = "org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.messages"; //$NON-NLS-1$
 
     public static @Nullable String VirtualMachineCPUAnalysis_Help;
+    public static @Nullable String FusedVirtualMachineAnalysis_Help;
 
     public static @Nullable String FusedVMView_stateTypeName;
     public static @Nullable String FusedVMView_multipleStates;
