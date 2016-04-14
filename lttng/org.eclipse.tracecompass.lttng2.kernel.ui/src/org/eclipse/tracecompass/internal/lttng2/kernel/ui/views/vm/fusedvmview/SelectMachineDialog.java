@@ -236,6 +236,7 @@ public class SelectMachineDialog extends TitleAreaDialog {
                 if (root == null) {
                     root = fContentProvider.getParent(element);
                 }
+                ((Machine) root).setHighlighted(((Machine) root).isChecked());
                 /* Update the view because the selection changed */
                 updateCheckedNodes(root);
             }
