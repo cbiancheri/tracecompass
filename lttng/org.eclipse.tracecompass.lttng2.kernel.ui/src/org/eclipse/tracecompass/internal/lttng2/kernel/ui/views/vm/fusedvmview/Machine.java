@@ -88,6 +88,18 @@ public class Machine {
         }
     }
 
+    public void setHighlightedWithAllContainers(Boolean b) {
+        highlighted = b;
+        if (b){
+            alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
+        } else {
+            alpha = FusedVMViewPresentationProvider.fDimAlpha;
+        }
+        for (Machine c : containers) {
+            c.setHighlighted(b);
+        }
+    }
+
     public void setHighlighted(Boolean b) {
         highlighted = b;
     }
@@ -153,7 +165,23 @@ public class Machine {
         return res;
     }
 
+    public void setHighlightedContainer(String c, Boolean b) {
+        for (Machine container : getContainers()) {
+            if (container.getMachineName().equals(c)) {
+                container.setHighlighted(b);
+                if (b) {
+                    setHighlighted(b);
+                } else {
+                    setHighlighted(isOneContainerHighlighted());
+                }
+            }
+        }
+    }
+
     public Boolean isContainerHighlighted(String c) {
+        if (c == null) {
+            return false;
+        }
         for (Machine container : getContainers()) {
             if (c.equals(container.getMachineName())) {
                 return container.isHighlighted();

@@ -88,7 +88,9 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 return;
             }
             machine.setHighlightedWithAllCpu(isChecked());
+            machine.setHighlightedWithAllContainers(isChecked());
             fHighlightCPU.setChecked(isChecked());
+            fHighlightContainer.setChecked(isChecked());
             presentationProvider.destroyTimeEventHighlight();
             refresh();
         }
@@ -122,6 +124,25 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             } else {
                 presentationProvider.removeHighlightedThread();
             }
+            presentationProvider.destroyTimeEventHighlight();
+            refresh();
+        }
+    };
+
+    /** Button to select a container to highlight */
+    private final Action fHighlightContainer = new Action(Messages.FusedVMView_ButtonContainerSelected, IAction.AS_CHECK_BOX) {
+        @Override
+        public void run() {
+            FusedVMViewPresentationProvider presentationProvider = getFusedVMViewPresentationProvider();
+            Map<String, Machine> highlightedMachines = presentationProvider.getHighlightedMachines();
+            Machine machine = highlightedMachines.get(presentationProvider.getSelectedMachine());
+            String container = presentationProvider.getSelectedContainer();
+            if (machine == null) {
+                setChecked(!isChecked());
+                return;
+            }
+            machine.setHighlightedContainer(container, isChecked());
+            fHighlightMachine.setChecked(machine.isOneContainerHighlighted());
             presentationProvider.destroyTimeEventHighlight();
             refresh();
         }
@@ -199,6 +220,11 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                     } else {
                         presentationProvider.setSelectedCpu(Integer.parseInt(ssq.getAttributeName(cpuQuark)));
                     }
+
+                    int nsInumQuark = FusedVMInformationProvider.getNodeNsInum(ssq, begin, machineName, threadID);
+                    interval = ssq.querySingleState(begin, nsInumQuark);
+                    String container = Long.toString(interval.getStateValue().unboxLong());
+                    presentationProvider.setSelectedContainer(container);
 
                 } catch (AttributeNotFoundException e) {
                     // Activator.getDefault().logError("Error in
@@ -576,6 +602,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         manager.add(fHighlightMachine);
         manager.add(fHighlightCPU);
         manager.add(fHighlightProcess);
+        manager.add(fHighlightContainer);
 
 
     }
@@ -691,6 +718,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 presentationProvider.getSelectedThreadName() + "\n" + //$NON-NLS-1$
                 Messages.FusedVMView_ButtonHoverProcessSelectedTID + ": " + //$NON-NLS-1$
                 Integer.toString(presentationProvider.getSelectedThreadID()));
+        fHighlightContainer.setToolTipText(presentationProvider.getSelectedContainer());
     }
 
     /**
@@ -707,6 +735,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         fHighlightMachine.setChecked(machine.isHighlighted());
         fHighlightCPU.setChecked(machine.isCpuHighlighted(presentationProvider.getSelectedCpu()));
         fHighlightProcess.setChecked(presentationProvider.isThreadSelected(machine.getMachineName(), presentationProvider.getSelectedThreadID()));
+        fHighlightContainer.setChecked(machine.isContainerHighlighted(presentationProvider.getSelectedContainer()));
     }
 
     public Action getSelectMachineAction() {

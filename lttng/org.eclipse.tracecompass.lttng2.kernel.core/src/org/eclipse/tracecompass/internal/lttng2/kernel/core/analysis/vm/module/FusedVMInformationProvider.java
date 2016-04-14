@@ -9,6 +9,7 @@ import org.eclipse.tracecompass.statesystem.core.ITmfStateSystem;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
 import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
+import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 
 public class FusedVMInformationProvider {
@@ -87,6 +88,17 @@ public class FusedVMInformationProvider {
 
     public static int getNodeSoftIRQs(ITmfStateSystemBuilder ssq) {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.SOFT_IRQS);
+    }
+
+    public static int getNodeNsInum(ITmfStateSystem ssq, long time, String machineName, Integer threadID) throws AttributeNotFoundException, StateSystemDisposedException {
+        int quark = ssq.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ssq), machineName, Integer.toString(threadID), Attributes.NS_MAX_LEVEL);
+        ITmfStateInterval interval = ssq.querySingleState(time, quark);
+        quark = ssq.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ssq), machineName, Integer.toString(threadID));
+        int nsMaxLevel = interval.getStateValue().unboxInt();
+        for (int i = 1; i < nsMaxLevel; i++) {
+            quark = ssq.getQuarkRelative(quark, Attributes.VTID);
+        }
+        return ssq.getQuarkRelative(quark, Attributes.NS_INUM);
     }
 
 }
