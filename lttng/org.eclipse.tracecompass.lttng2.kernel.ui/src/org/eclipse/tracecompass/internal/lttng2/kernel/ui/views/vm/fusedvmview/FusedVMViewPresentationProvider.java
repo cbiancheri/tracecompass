@@ -55,6 +55,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     private String selectedMachine;
     private Thread selectedThread;
     private int selectedCpu;
+    private String selectedContainer;
     private Map<Thread, Thread> highlightedTreads = new HashMap<>();
     private Map<String, Machine> highlightedMachines = new HashMap<>();
     public static final int fHighlightAlpha = 255;
@@ -349,20 +350,29 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                 int currentThreadId = value.unboxInt();
                                 retMap.put(Messages.FusedVMView_attributeTidName, Integer.toString(currentThreadId));
 
-                                /* TODO: display container info */
-                                int nsMaxLevelQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), "ns_max_level");
+                                /*
+                                 * Special case for tid == 0, there is no
+                                 * NS_MAX_LEVEL node. So we look at tid 1. It
+                                 * should not be inside a container.
+                                 */
+                                int saveTID = currentThreadId;
+                                if (currentThreadId == 0) {
+                                    currentThreadId++;
+                                }
+                                int nsMaxLevelQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), Attributes.NS_MAX_LEVEL);
+                                currentThreadId = saveTID;
                                 interval = ss.querySingleState(hoverTime, nsMaxLevelQuark);
                                 int nsMaxLevel = interval.getStateValue().unboxInt();
                                 if (nsMaxLevel != 1) {
                                     int actualLevel = 1;
-                                    int virtualTIDQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), "VTID");
+                                    int virtualTIDQuark = ss.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(currentThreadId), Attributes.VTID);
                                     actualLevel++;
                                     while (actualLevel < nsMaxLevel) {
-                                        virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, "VTID");
+                                        virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.VTID);
                                         actualLevel++;
                                     }
                                     int vtid = ss.querySingleState(hoverTime, virtualTIDQuark).getStateValue().unboxInt();
-                                    int namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, "ns_inum");
+                                    int namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.NS_INUM);
                                     long namespaceID = ss.querySingleState(hoverTime, namespaceIDQuark).getStateValue().unboxLong();
                                     retMap.put("> vTID", Integer.toString(vtid));
                                     retMap.put("> Container", Long.toString(namespaceID));
@@ -638,20 +648,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 
     private boolean isContainerHighlighted(ITimeEvent event) {
         Map<String, Machine> map = getHighlightedMachines();
-//        boolean allDim = true;
-//        boolean allHighlighted = true;
-//        for (Machine m : map.values()) {
-//            if (m.isHighlighted()) {
-//                allDim = false;
-//            } else {
-//                allHighlighted = false;
-//            }
-//        }
-//        if (allDim) {
-//            return false;
-//        } else if (allHighlighted) {
-//            return true;
-//        }
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
         ITmfTrace trace = entry.getTrace();
         ITmfStateSystem ss = TmfStateSystemAnalysisModule.getStateSystem(trace, FusedVirtualMachineAnalysis.ID);
@@ -671,14 +667,23 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             int quark = ss.getQuarkRelative(cpuQuark, Attributes.CURRENT_THREAD);
             interval = ss.querySingleState(time, quark);
             int tid = interval.getStateValue().unboxInt();
-            quark = ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss), machineName, Integer.toString(tid), "ns_max_level");
-            interval = ss.querySingleState(time, quark);
-            quark = ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss), machineName, Integer.toString(tid));
-            int nsMaxLevel = interval.getStateValue().unboxInt();
-            for (int i = 1; i < nsMaxLevel; i++) {
-                quark = ss.getQuarkRelative(quark, "VTID");
+            // quark =
+            // ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss),
+            // machineName, Integer.toString(tid), "ns_max_level");
+            // interval = ss.querySingleState(time, quark);
+            // quark =
+            // ss.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ss),
+            // machineName, Integer.toString(tid));
+            // int nsMaxLevel = interval.getStateValue().unboxInt();
+            // for (int i = 1; i < nsMaxLevel; i++) {
+            // quark = ss.getQuarkRelative(quark, "VTID");
+            // }
+            // quark = ss.getQuarkRelative(quark, "ns_inum");
+            if (tid == 0) {
+                /* We don't have infos about nsInum for tid 0 so we look at 1 */
+                tid = 1;
             }
-            quark = ss.getQuarkRelative(quark, "ns_inum");
+            quark = FusedVMInformationProvider.getNodeNsInum(ss, time, machineName, tid);
             nsID = Long.toString(ss.querySingleState(time, quark).getStateValue().unboxLong());
         } catch (AttributeNotFoundException e) {
             // Activator.getDefault().logError("Error in
@@ -870,6 +875,25 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     /**
+     * Sets the selected container;
+     *
+     * @param container
+     *            the selected container
+     */
+    public void setSelectedContainer(String container) {
+        selectedContainer = container;
+    }
+
+    /**
+     * Gets the selected container
+     *
+     * @return the selected container
+     */
+    public String getSelectedContainer() {
+        return selectedContainer;
+    }
+
+    /**
      * Gets the highlighted threads
      *
      * @return the highlightedTreads
@@ -913,7 +937,6 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
     }
 
     public void destroyTimeEventHighlight() {
-        System.err.println("TimeEvent count: " + fTimeEventHighlight.size());
         fTimeEventHighlight.clear();
     }
 
