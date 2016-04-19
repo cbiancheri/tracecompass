@@ -26,13 +26,18 @@ public interface StateValues {
 
     /* CPU Status */
     int CPU_STATUS_IDLE = 0;
-    int CPU_STATUS_RUN_USERMODE = 1;
-    int CPU_STATUS_RUN_SYSCALL = 2;
-    int CPU_STATUS_IRQ = 3;
-    int CPU_STATUS_SOFTIRQ = 4;
-    int CPU_STATUS_IN_VM = 5;
-    int CPU_STATUS_SWITCH_TO_USERMODE = 6;
-    int CPU_STATUS_SWITCH_TO_SYSCALL = 7;
+    /**
+     * Soft IRQ raised, could happen in the CPU attribute but should not since
+     * this means that the CPU went idle when a softirq was raised.
+     */
+    int CPU_STATUS_SOFT_IRQ_RAISED = (1 << 0);
+    int CPU_STATUS_RUN_USERMODE = (1 << 1);
+    int CPU_STATUS_RUN_SYSCALL = (1 << 2);
+    int CPU_STATUS_SOFTIRQ = (1 << 3);
+    int CPU_STATUS_IRQ = (1 << 4);
+    int CPU_STATUS_IN_VM = (1 << 5);
+    int CPU_STATUS_SWITCH_TO_USERMODE =(1 << 6);
+    int CPU_STATUS_SWITCH_TO_SYSCALL = (1 << 7);
 
     ITmfStateValue CPU_STATUS_IDLE_VALUE = TmfStateValue.newValueInt(CPU_STATUS_IDLE);
     ITmfStateValue CPU_STATUS_RUN_USERMODE_VALUE = TmfStateValue.newValueInt(CPU_STATUS_RUN_USERMODE);
@@ -59,9 +64,6 @@ public interface StateValues {
     int PROCESS_STATUS_RUN_SYSCALL = 3;
     int PROCESS_STATUS_INTERRUPTED = 4;
     int PROCESS_STATUS_WAIT_FOR_CPU = 5;
-    /**
-     * @since 1.0
-     */
     int PROCESS_STATUS_WAIT_UNKNOWN = 6;
 
     ITmfStateValue PROCESS_STATUS_UNKNOWN_VALUE = TmfStateValue.newValueInt(PROCESS_STATUS_UNKNOWN);
@@ -75,8 +77,9 @@ public interface StateValues {
     ITmfStateValue PROCESS_STATUS_INTERRUPTED_VALUE = TmfStateValue.newValueInt(PROCESS_STATUS_INTERRUPTED);
     ITmfStateValue PROCESS_STATUS_WAIT_FOR_CPU_VALUE = TmfStateValue.newValueInt(PROCESS_STATUS_WAIT_FOR_CPU);
 
-    /* SoftIRQ-specific stuff. -1: null/disabled, >= 0: running on that CPU */
-    int SOFT_IRQ_RAISED = -2;
+    /** Soft IRQ is raised, CPU is in user mode */
+    ITmfStateValue SOFT_IRQ_RAISED_VALUE = TmfStateValue.newValueInt(CPU_STATUS_SOFT_IRQ_RAISED);
 
-    ITmfStateValue SOFT_IRQ_RAISED_VALUE = TmfStateValue.newValueInt(SOFT_IRQ_RAISED);
+    /** If the softirq is running and another is raised at the same time. */
+    ITmfStateValue SOFT_IRQ_RAISED_RUNNING_VALUE = TmfStateValue.newValueInt(CPU_STATUS_SOFT_IRQ_RAISED | CPU_STATUS_SOFTIRQ);
 }

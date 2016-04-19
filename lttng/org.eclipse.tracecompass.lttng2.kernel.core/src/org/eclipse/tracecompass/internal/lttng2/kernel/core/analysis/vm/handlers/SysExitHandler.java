@@ -1,8 +1,7 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.tracecompass.analysis.os.linux.core.kernel.Attributes;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
@@ -20,7 +19,7 @@ public class SysExitHandler extends VMKernelEventHandler {
 
     @Override
     public void handleEvent(ITmfStateSystemBuilder ss, ITmfEvent event) throws AttributeNotFoundException {
-        Integer cpu = KernelEventHandlerUtils.getCpu(event);
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         if (cpu == null) {
             return;
         }
@@ -33,10 +32,10 @@ public class SysExitHandler extends VMKernelEventHandler {
             }
         }
         /* Assign the new system call to the process */
-        int currentThreadNode = FusedVirtualMachineStateProvider.getCurrentThreadNode(cpu, ss);
+        int currentThreadNode = FusedVMEventHandlerUtils.getCurrentThreadNode(cpu, ss);
         int quark = ss.getQuarkRelativeAndAdd(currentThreadNode, Attributes.SYSTEM_CALL);
         ITmfStateValue value = TmfStateValue.nullValue();
-        long timestamp = KernelEventHandlerUtils.getTimestamp(event);
+        long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         ss.modifyAttribute(timestamp, value, quark);
 
         /* Put the process in user mode */
@@ -45,7 +44,7 @@ public class SysExitHandler extends VMKernelEventHandler {
         ss.modifyAttribute(timestamp, value, quark);
 
         /* Put the CPU in user mode */
-        int currentCPUNode = KernelEventHandlerUtils.getCurrentCPUNode(cpu, ss);
+        int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         value = StateValues.CPU_STATUS_RUN_USERMODE_VALUE;
         ss.modifyAttribute(timestamp, value, quark);

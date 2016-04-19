@@ -1,7 +1,11 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
+import java.util.Iterator;
+
 import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.tracecompass.internal.analysis.os.linux.ui.views.resources.SoftIrqLabelProvider;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
 
@@ -89,7 +93,14 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
      */
     public FusedVMViewEntry(int quark, @NonNull ITmfTrace trace,
             long startTime, long endTime, Type type, int id) {
-        this(quark, trace, type.toString() + " " + id, startTime, endTime, type, id); //$NON-NLS-1$
+        this(quark, trace, computeEntryName(type, id), startTime, endTime, type, id);
+    }
+
+    private static String computeEntryName(Type type, int id) {
+        if (Type.SOFT_IRQ.equals(type)) {
+            return type.toString() + ' ' + id + ' ' + SoftIrqLabelProvider.getSoftIrq(id);
+        }
+        return type.toString() + ' ' + id;
     }
 
     /**
@@ -157,6 +168,11 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
             return ret;
         }
         return Integer.compare(this.getId(), o.getId());
+    }
+
+    @Override
+    public Iterator<@NonNull ITimeEvent> getTimeEventsIterator() {
+        return super.getTimeEventsIterator();
     }
 
 }

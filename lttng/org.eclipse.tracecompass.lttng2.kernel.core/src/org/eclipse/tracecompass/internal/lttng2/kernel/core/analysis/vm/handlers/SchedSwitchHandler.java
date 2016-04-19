@@ -3,7 +3,6 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handler
 import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
@@ -25,7 +24,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
 
     @Override
     public void handleEvent(ITmfStateSystemBuilder ss, ITmfEvent event) throws AttributeNotFoundException {
-        Integer cpu = KernelEventHandlerUtils.getCpu(event);
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         if (cpu == null) {
             return;
         }
@@ -47,16 +46,21 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         Integer nextPrio = ((Long) content.getField(getLayout().fieldNextPrio()).getValue()).intValue();
         String machineName = event.getTrace().getName();
 
-        int nodeThreads = KernelEventHandlerUtils.getNodeThreads(ss);
-        int formerThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, prevTid.toString());
-        int newCurrentThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, nextTid.toString());
+        /* Will never return null since "cpu" is null checked */
+        String formerThreadAttributeName = FusedVMEventHandlerUtils.buildThreadAttributeName(prevTid, cpu);
+        String currenThreadAttributeName = FusedVMEventHandlerUtils.buildThreadAttributeName(nextTid, cpu);
 
-        long timestamp = KernelEventHandlerUtils.getTimestamp(event);
+
+        int nodeThreads = FusedVMEventHandlerUtils.getNodeThreads(ss);
+        int formerThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, formerThreadAttributeName);
+        int newCurrentThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, currenThreadAttributeName);
+
+        long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         /* Set the status of the process that got scheduled out. */
         setOldProcessStatus(ss, prevState, formerThreadNode, timestamp);
 
         /* Set the status of the new scheduled process */
-        KernelEventHandlerUtils.setProcessToRunning(timestamp, newCurrentThreadNode, ss);
+        FusedVMEventHandlerUtils.setProcessToRunning(timestamp, newCurrentThreadNode, ss);
 
         /* Set the exec name of the new process */
         setNewProcessExecName(ss, nextProcessName, newCurrentThreadNode, timestamp);
@@ -69,7 +73,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         ss.getQuarkRelativeAndAdd(newCurrentThreadNode, Attributes.PPID);
 
         /* Set the current scheduled process on the relevant CPU */
-        int currentCPUNode = KernelEventHandlerUtils.getCurrentCPUNode(cpu, ss);
+        int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         ITmfStateValue stateProcess = setCpuProcess(ss, nextTid, timestamp, currentCPUNode);
 
         /* Set the status of the CPU itself */
@@ -82,31 +86,43 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
     private static void setOldProcessStatus(ITmfStateSystemBuilder ss, Long prevState, Integer formerThreadNode, long timestamp) throws AttributeNotFoundException {
         ITmfStateValue value;
         /*
-         * Empirical observations and look into the linux code have shown that
-         * the TASK_STATE_MAX flag is used internally and |'ed with other
-         * states, most often the running state, so it is ignored from the
-         * prevState value.
+         * Empirical observations and look into the linux code have
+         * shown that the TASK_STATE_MAX flag is used internally and
+         * |'ed with other states, most often the running state, so it
+         * is ignored from the prevState value.
+         *
+         * Since Linux 4.1, the TASK_NOLOAD state was created and
+         * TASK_STATE_MAX is now 2048. We use TASK_NOLOAD as the new max
+         * because it does not modify the displayed state value.
          */
-        int state = (int) (prevState & ~(LinuxValues.TASK_STATE_MAX));
+        int state = (int) (prevState & (LinuxValues.TASK_NOLOAD - 1));
 
-        switch (state) {
-        case LinuxValues.TASK_STATE_RUNNING:
+        if (isRunning(state)) {
             value = StateValues.PROCESS_STATUS_WAIT_FOR_CPU_VALUE;
-            break;
-        case LinuxValues.TASK_INTERRUPTIBLE:
-        case LinuxValues.TASK_UNINTERRUPTIBLE:
+        } else if (isWaiting(state)) {
             value = StateValues.PROCESS_STATUS_WAIT_BLOCKED_VALUE;
-            break;
-        case LinuxValues.TASK_DEAD:
+        } else if (isDead(state)) {
             value = TmfStateValue.nullValue();
-            break;
-        default:
+        } else {
             value = StateValues.PROCESS_STATUS_WAIT_UNKNOWN_VALUE;
-            break;
         }
         int quark = ss.getQuarkRelativeAndAdd(formerThreadNode, Attributes.STATUS);
         ss.modifyAttribute(timestamp, value, quark);
 
+    }
+
+    private static boolean isDead(int state) {
+        return (state & LinuxValues.TASK_DEAD) != 0;
+    }
+
+    private static boolean isWaiting(int state) {
+        return (state & (LinuxValues.TASK_INTERRUPTIBLE | LinuxValues.TASK_UNINTERRUPTIBLE)) != 0;
+    }
+
+    private static boolean isRunning(int state) {
+        // special case, this means ALL STATES ARE 0
+        // this is effectively an anti-state
+        return state == 0;
     }
 
     private static ITmfStateValue setCpuStatus(ITmfStateSystemBuilder ss, Integer nextTid, Integer newCurrentThreadNode, long timestamp, int currentCPUNode) throws AttributeNotFoundException {

@@ -1,9 +1,7 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
@@ -21,18 +19,14 @@ public class KvmExitHandler extends VMKernelEventHandler {
     }
 
     @Override
-    public void handleEvent(@NonNull ITmfStateSystemBuilder ss, @NonNull ITmfEvent event) throws AttributeNotFoundException {
-        Integer cpu = KernelEventHandlerUtils.getCpu(event);
+    public void handleEvent(ITmfStateSystemBuilder ss, ITmfEvent event) throws AttributeNotFoundException {
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         if (cpu == null) {
             return;
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
-        int currentCPUNode = FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss);
-        /*
-         * Shortcut for the "current thread" attribute node. It requires
-         * querying the current CPU's current thread.
-         */
-        int quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
+        int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
+        int quark;
 
         ITmfStateValue value;
 
@@ -41,15 +35,15 @@ public class KvmExitHandler extends VMKernelEventHandler {
             return;
         }
 
+        /* Getting out of a VM */
         sp.replaceValueCpusInVM(cpu, false);
-        quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
 
         /* Get the host CPU doing the kvm_exit. */
         VirtualCPU hostCpu = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         /*
          * Get the host thread to get the right virtual machine.
          */
-        long timestamp = KernelEventHandlerUtils.getTimestamp(event);
+        long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         value = hostCpu.getCurrentThread();
         HostThread ht = new HostThread(host.getHostId(), value.unboxInt());
         VirtualCPU vcpu = sp.getVirtualCpu(ht);
@@ -58,10 +52,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
         }
 
         /* Save the state of the VCpu. */
+        quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         ITmfStateValue ongoingState = ss.queryOngoingState(quark);
-//        if (ongoingState != null) {
-            vcpu.setCurrentState(ongoingState);
-//        }
+        vcpu.setCurrentState(ongoingState);
 
         /*
          * When the states of the vm and the host are the same the transition is
@@ -72,11 +65,9 @@ public class KvmExitHandler extends VMKernelEventHandler {
         /* Then the current state of the host is restored. */
         if (hostCpu.getCurrentState() == vcpu.getCurrentState()) {
             value = StateValues.CPU_STATUS_IN_VM_VALUE;
-             ss.modifyAttribute(timestamp - 1, value, quark);
-//            ss.modifyAttribute(timestamp, value, quark);
+            ss.modifyAttribute(timestamp - 1, value, quark);
             value = hostCpu.getCurrentState();
-             ss.modifyAttribute(timestamp, value, quark);
-//            ss.modifyAttribute(timestamp + 1, value, quark);
+            ss.modifyAttribute(timestamp, value, quark);
         } else {
              value = hostCpu.getCurrentState();
              ss.modifyAttribute(timestamp, value, quark);
@@ -87,9 +78,7 @@ public class KvmExitHandler extends VMKernelEventHandler {
          */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         ongoingState = ss.queryOngoingState(quark);
-//        if (ongoingState != null) {
-            vcpu.setCurrentThread(ongoingState);
-//        }
+        vcpu.setCurrentThread(ongoingState);
 
         /* Restore the thread of the host that was running. */
         value = hostCpu.getCurrentThread();
