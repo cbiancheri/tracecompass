@@ -20,25 +20,24 @@ import java.util.Map;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.common.core.NonNullUtils;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandler;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.ProcessExitHandler;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.SoftIrqRaiseHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.IrqEntryHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.IrqExitHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.KvmEntryHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.KvmExitHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.PiSetprioHandler;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessExitHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessForkContainerHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.ProcessFreeHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SchedSwitchHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SchedWakeupHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SoftIrqEntryHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SoftIrqExitHandler;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SoftIrqRaiseHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.StateDumpContainerHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SysEntryHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.SysExitHandler;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers.VMKernelEventHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.lxc.LxcModel;
@@ -61,7 +60,7 @@ import com.google.common.collect.ImmutableMap;
 
 /**
  * State provider for the Fused Virtual Machine analysis. It is based on the
- * version 9 of the kernel state provider.
+ * version 16 of the kernel state provider.
  *
  * @author Cedric Biancheri
  *
@@ -75,19 +74,22 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
      * Version number of this state provider. Please bump this if you modify the
      * contents of the generated state history in some way.
      */
-    /* We try to match with the version of the KernelStateProvider */
-    private static final int VERSION = 11;
+    /*
+     * We try to match with the latest version of the KernelStateProvider.
+     * Currently version 16.
+     */
+    private static final int VERSION = 3;
 
     // ------------------------------------------------------------------------
     // Fields
     // ------------------------------------------------------------------------
 
-    private final Map<String, KernelEventHandler> fEventNames;
+    private final Map<String, VMKernelEventHandler> fEventNames;
     private final IKernelAnalysisEventLayout fLayout;
-    private final KernelEventHandler fSysEntryHandler;
-    private final KernelEventHandler fSysExitHandler;
-    private final KernelEventHandler fKvmEntryHandler;
-    private final KernelEventHandler fKvmExitHandler;
+    private final VMKernelEventHandler fSysEntryHandler;
+    private final VMKernelEventHandler fSysExitHandler;
+    private final VMKernelEventHandler fKvmEntryHandler;
+    private final VMKernelEventHandler fKvmExitHandler;
     /* The pcpus actually running a vm. */
     private final Map<Integer, Boolean> fCpusInVM;
     private QemuKvmVmModel fModel;
@@ -128,29 +130,29 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     // Event names management
     // ------------------------------------------------------------------------
 
-    private Map<String, KernelEventHandler> buildEventNames(IKernelAnalysisEventLayout layout) {
-        ImmutableMap.Builder<String, KernelEventHandler> builder = ImmutableMap.builder();
+    private Map<String, VMKernelEventHandler> buildEventNames(IKernelAnalysisEventLayout layout) {
+        ImmutableMap.Builder<String, VMKernelEventHandler> builder = ImmutableMap.builder();
 
         builder.put(layout.eventIrqHandlerEntry(), new IrqEntryHandler(layout, this));
         builder.put(layout.eventIrqHandlerExit(), new IrqExitHandler(layout, this));
         builder.put(layout.eventSoftIrqEntry(), new SoftIrqEntryHandler(layout, this));
         builder.put(layout.eventSoftIrqExit(), new SoftIrqExitHandler(layout, this));
-        builder.put(layout.eventSoftIrqRaise(), new SoftIrqRaiseHandler(layout));
+        builder.put(layout.eventSoftIrqRaise(), new SoftIrqRaiseHandler(layout, this));
         builder.put(layout.eventSchedSwitch(), new SchedSwitchHandler(layout, this));
         builder.put(layout.eventSchedPiSetprio(), new PiSetprioHandler(layout, this));
         builder.put(layout.eventSchedProcessFork(), new ProcessForkContainerHandler(layout, this));
-        builder.put(layout.eventSchedProcessExit(), new ProcessExitHandler(layout));
+        builder.put(layout.eventSchedProcessExit(), new ProcessExitHandler(layout, this));
         builder.put(layout.eventSchedProcessFree(), new ProcessFreeHandler(layout, this));
 
         final String eventStatedumpProcessState = layout.eventStatedumpProcessState();
         if (eventStatedumpProcessState != null) {
-            builder.put(eventStatedumpProcessState, new StateDumpContainerHandler(layout));
+            builder.put(eventStatedumpProcessState, new StateDumpContainerHandler(layout, this));
         }
 
         for (String eventSchedWakeup : layout.eventsSchedWakeup()) {
-            builder.put(eventSchedWakeup, new SchedWakeupHandler(layout));
+            builder.put(eventSchedWakeup, new SchedWakeupHandler(layout, this));
         }
-        return NonNullUtils.checkNotNull(builder.build());
+        return builder.build();
     }
 
     // ------------------------------------------------------------------------
@@ -317,7 +319,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
              * Feed event to the history system if it's known to cause a state
              * transition.
              */
-            KernelEventHandler handler = fEventNames.get(eventName);
+            VMKernelEventHandler handler = fEventNames.get(eventName);
             if (handler == null) {
                 if (isSyscallExit(eventName)) {
                     handler = fSysExitHandler;
@@ -483,5 +485,4 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     public Map<String, VirtualMachine> getKnownMachines() {
         return fModel.getKnownMachines();
     }
-
 }

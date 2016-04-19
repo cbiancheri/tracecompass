@@ -18,12 +18,13 @@ public interface Attributes {
     /* First-level attributes */
     String CPUS = "CPUs";
     String THREADS = "Threads";
-    String RESOURCES = "Resources";
     String MACHINES = "Machines";
 
     /* Sub-attributes of the CPU nodes */
     String CURRENT_THREAD = "Current_thread";
     String STATUS = "Status";
+    String IRQS = "IRQs";
+    String SOFT_IRQS = "Soft_IRQs";
     String CONDITION = "Condition";
     String MACHINE_NAME = "Machine_name";
     String VIRTUAL_CPU = "Virtual_cpu";
@@ -48,10 +49,8 @@ public interface Attributes {
     String PRIO = "Prio";
     String SYSTEM_CALL = "System_call";
 
-    /* Attributes under "Resources" */
-    String IRQS = "IRQs";
-    String SOFT_IRQS = "Soft_IRQs";
-
     /* Misc stuff */
     String UNKNOWN = "Unknown";
+    String THREAD_0_PREFIX = "0_";
+    String THREAD_0_SEPARATOR = "_";
 }

@@ -1,12 +1,10 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.tracecompass.analysis.os.linux.core.kernel.LinuxValues;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandler;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
-import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.LinuxValues;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
@@ -16,19 +14,21 @@ import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
 
-public class StateDumpContainerHandler extends KernelEventHandler {
+public class StateDumpContainerHandler extends VMKernelEventHandler {
 
     /**
      * @param layout
      */
-    public StateDumpContainerHandler(IKernelAnalysisEventLayout layout) {
-        super(layout);
+    public StateDumpContainerHandler(IKernelAnalysisEventLayout layout, FusedVirtualMachineStateProvider sp) {
+        super(layout, sp);
     }
 
     @Override
-    public void handleEvent(@NonNull ITmfStateSystemBuilder ss, @NonNull ITmfEvent event) throws AttributeNotFoundException {
+    public void handleEvent(ITmfStateSystemBuilder ss, ITmfEvent event) throws AttributeNotFoundException {
         int layerNode = createLevels(ss, event);
-        fillLevel(ss, event, layerNode);
+        if (layerNode !=0) {
+            fillLevel(ss, event, layerNode);
+        }
     }
 
     /**
@@ -44,13 +44,18 @@ public class StateDumpContainerHandler extends KernelEventHandler {
      * @throws AttributeNotFoundException
      */
     public static int createLevels(@NonNull ITmfStateSystemBuilder ss, @NonNull ITmfEvent event) throws StateValueTypeException, AttributeNotFoundException {
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         ITmfEventField content = event.getContent();
         int tid = ((Long) content.getField("tid").getValue()).intValue(); //$NON-NLS-1$
         int vtid = ((Long) content.getField("vtid").getValue()).intValue(); //$NON-NLS-1$
         int nsLevel = ((Long) content.getField("ns_level").getValue()).intValue(); //$NON-NLS-1$
         long ts = event.getTimestamp().getValue();
         String machineName = event.getTrace().getName();
-        int threadNode = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeThreadsAndAdd(ss), machineName, String.valueOf(tid));
+        String threadAttributeName = FusedVMEventHandlerUtils.buildThreadAttributeName(tid, cpu);
+        if (threadAttributeName == null) {
+            return 0;
+        }
+        int threadNode = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getNodeThreads(ss), machineName, threadAttributeName);
         int layerNode = threadNode;
         int quark;
         ITmfStateValue value;
@@ -89,6 +94,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
      * @throws AttributeNotFoundException
      */
     public static void fillLevel(@NonNull ITmfStateSystemBuilder ss, @NonNull ITmfEvent event, int layerNode) throws StateValueTypeException, AttributeNotFoundException {
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         ITmfEventField content = event.getContent();
         long ts = event.getTimestamp().getValue();
         int quark;
@@ -105,7 +111,12 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         int nsLevel = ((Long) content.getField("ns_level").getValue()).intValue(); //$NON-NLS-1$
         long nsInum = (Long) content.getField("ns_inum").getValue(); //$NON-NLS-1$
 
-        int threadNode = ss.getQuarkRelativeAndAdd(FusedVMInformationProvider.getNodeThreadsAndAdd(ss), machineName, String.valueOf(tid));
+        String threadAttributeName = FusedVMEventHandlerUtils.buildThreadAttributeName(tid, cpu);
+        if (threadAttributeName == null) {
+            return;
+        }
+
+        int threadNode = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getNodeThreads(ss), machineName, threadAttributeName);
 
         /*
          * Set the max level, only at level 0. This can be useful to know the
@@ -204,7 +215,7 @@ public class StateDumpContainerHandler extends KernelEventHandler {
         }
 
         /* Save the namespace id somewhere so it can be reused */
-        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum));
+        quark = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum));
 
         /* Save the tid in the container. We also keep the vtid */
         quark = ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Integer.toString(tid));
@@ -219,14 +230,14 @@ public class StateDumpContainerHandler extends KernelEventHandler {
             quark = ss.getQuarkRelativeAndAdd(layerNode, Attributes.VTID, Attributes.NS_INUM);
             Long childNSInum = ss.queryOngoingState(quark).unboxLong();
             if (childNSInum > 0) {
-                quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(childNSInum), Attributes.PARENT);
+                quark = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(childNSInum), Attributes.PARENT);
                 ss.modifyAttribute(ss.getStartTime(), TmfStateValue.newValueLong(nsInum), quark);
             }
         }
 
         if (nsLevel == 0) {
             /* Root namespace => no parent */
-            quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum), Attributes.PARENT);
+            quark = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getNodeMachines(ss), machineName, Attributes.CONTAINERS, Long.toString(nsInum), Attributes.PARENT);
             ss.modifyAttribute(ss.getStartTime(), TmfStateValue.newValueLong(-1), quark);
         }
 

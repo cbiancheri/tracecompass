@@ -1,13 +1,10 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
-import org.eclipse.tracecompass.internal.analysis.os.linux.core.kernel.handlers.KernelEventHandlerUtils;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
-import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
@@ -23,14 +20,14 @@ public class KvmEntryHandler extends VMKernelEventHandler {
     }
 
     @Override
-    public void handleEvent(@NonNull ITmfStateSystemBuilder ss, @NonNull ITmfEvent event) throws AttributeNotFoundException {
+    public void handleEvent(ITmfStateSystemBuilder ss, ITmfEvent event) throws AttributeNotFoundException {
 
-        Integer cpu = KernelEventHandlerUtils.getCpu(event);
+        Integer cpu = FusedVMEventHandlerUtils.getCpu(event);
         if (cpu == null) {
             return;
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
-        int currentCPUNode = FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss);
+        int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         /*
          * Shortcut for the "current thread" attribute node. It requires
          * querying the current CPU's current thread.
@@ -51,7 +48,7 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         /* Add the condition in_vm in the state system. */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
         value = StateValues.CONDITION_IN_VM_VALUE;
-        long timestamp = KernelEventHandlerUtils.getTimestamp(event);
+        long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         ss.modifyAttribute(timestamp, value, quark);
 
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
@@ -62,9 +59,7 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          * Saves the state. Will be restored after a kvm_exit.
          */
         ITmfStateValue ongoingState = ss.queryOngoingState(quark);
-//        if (ongoingState != null) {
-            hostCpu.setCurrentState(ongoingState);
-//        }
+        hostCpu.setCurrentState(ongoingState);
         /*
          * Get the host thread to get the right virtual machine.
          */
@@ -85,7 +80,7 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          * If not already done, associate the TID in the host corresponding to
          * the vCPU inside the state system.
          */
-        int quarkVCPUs = FusedVMInformationProvider.getMachineCPUsNode(ss, virtualMachine.getTraceName());
+        int quarkVCPUs = FusedVMEventHandlerUtils.getMachineCPUsNode(ss, virtualMachine.getTraceName());
         int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkVCPUs, vcpu.getCpuId().toString());
         if (ss.queryOngoingState(quarkVCPU).isNull()) {
             ss.modifyAttribute(timestamp, TmfStateValue.newValueInt(thread), quarkVCPU);
@@ -128,9 +123,7 @@ public class KvmEntryHandler extends VMKernelEventHandler {
          */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         ongoingState = ss.queryOngoingState(quark);
-//        if (ongoingState != null) {
-            hostCpu.setCurrentThread(ongoingState);
-//        }
+        hostCpu.setCurrentThread(ongoingState);
         /* Restore the thread of the VM that was running. */
         value = vcpu.getCurrentThread();
         ss.modifyAttribute(timestamp, value, quark);

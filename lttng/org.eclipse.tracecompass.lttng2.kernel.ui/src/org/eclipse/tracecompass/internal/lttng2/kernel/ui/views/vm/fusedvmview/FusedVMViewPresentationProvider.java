@@ -182,11 +182,10 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 if (state != null) {
                     return state;
                 }
-
             } else if (entry.getType() == Type.IRQ) {
                 return State.IRQ_ACTIVE;
             } else if (entry.getType() == Type.SOFT_IRQ) {
-                if (value == StateValues.SOFT_IRQ_RAISED) {
+                if (value == StateValues.CPU_STATUS_SOFT_IRQ_RAISED) {
                     return State.SOFT_IRQ_RAISED;
                 }
                 return State.SOFT_IRQ_ACTIVE;
@@ -296,7 +295,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 
                         try {
                             List<ITmfStateInterval> fullState = ss.queryFullState(event.getTime());
-                            List<Integer> irqQuarks = ss.getQuarks(Attributes.RESOURCES, Attributes.IRQS, "*"); //$NON-NLS-1$
+                            List<Integer> irqQuarks = ss.getQuarks(Attributes.CPUS, Integer.toString(cpu), Attributes.IRQS, "*"); //$NON-NLS-1$
 
                             for (int irqQuark : irqQuarks) {
                                 if (fullState.get(irqQuark).getStateValue().unboxInt() == cpu) {
@@ -320,7 +319,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
 
                         try {
                             List<ITmfStateInterval> fullState = ss.queryFullState(event.getTime());
-                            List<Integer> softIrqQuarks = ss.getQuarks(Attributes.RESOURCES, Attributes.SOFT_IRQS, "*"); //$NON-NLS-1$
+                            List<Integer> softIrqQuarks = ss.getQuarks(Attributes.CPUS, Integer.toString(cpu), Attributes.SOFT_IRQS, "*"); //$NON-NLS-1$
 
                             for (int softIrqQuark : softIrqQuarks) {
                                 if (fullState.get(softIrqQuark).getStateValue().unboxInt() == cpu) {
@@ -946,9 +945,15 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         if (b != null) {
             return b;
         }
-        int alpha = isProcessHighlighted(event);
-        if ((isMachineHighlighted(event) && isCpuHighlighted(event)) || isContainerHighlighted(event)) {
+        int alpha;
+        Type typeEntry = ((FusedVMViewEntry) event.getEntry()).getType();
+        if (typeEntry == Type.IRQ || typeEntry == Type.SOFT_IRQ) {
             alpha = fHighlightAlpha;
+        } else {
+            alpha = isProcessHighlighted(event);
+            if ((isMachineHighlighted(event) && isCpuHighlighted(event)) || isContainerHighlighted(event)) {
+                alpha = fHighlightAlpha;
+            }
         }
         fTimeEventHighlight.put(event, alpha);
         return alpha;
