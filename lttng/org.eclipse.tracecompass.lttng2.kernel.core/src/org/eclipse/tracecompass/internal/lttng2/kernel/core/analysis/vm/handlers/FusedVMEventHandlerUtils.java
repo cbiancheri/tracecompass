@@ -242,7 +242,9 @@ public class FusedVMEventHandlerUtils {
         if (tid == 0) {
             return StateValues.CPU_STATUS_IDLE_VALUE;
         }
-        int threadSystemCallQuark = ssb.getQuarkAbsoluteAndAdd(Attributes.THREADS, Integer.toString(tid), Attributes.SYSTEM_CALL);
+        int currentMachineQuark = ssb.getQuarkRelativeAndAdd(cpuQuark, Attributes.MACHINE_NAME);
+        String machineName = ssb.queryOngoingState(currentMachineQuark).unboxStr();
+        int threadSystemCallQuark = ssb.getQuarkRelativeAndAdd(getNodeThreads(ssb, machineName), Integer.toString(tid), Attributes.SYSTEM_CALL);
         return (ssb.queryOngoingState(threadSystemCallQuark).isNull() ?
                 StateValues.CPU_STATUS_RUN_USERMODE_VALUE :
                 StateValues.CPU_STATUS_RUN_SYSCALL_VALUE);
