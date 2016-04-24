@@ -29,7 +29,7 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
     /**
      * The file name of the History Tree
      */
-    public static final String HISTORY_TREE_FILE_NAME = "stateHistory.ht"; //$NON-NLS-1$
+    public static final String HISTORY_TREE_FILE_NAME = "org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis.ht"; //$NON-NLS-1$
 
     /** The ID of this analysis module */
     public static final String ID = "org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis"; //$NON-NLS-1$

@@ -190,6 +190,8 @@ public abstract class AbstractTmfStateProvider implements ITmfStateProvider {
              */
             @NonNull ITmfEvent event = fEventsQueue.take();
             /* This is a singleton, we want to do != instead of !x.equals */
+            String stateProviderName = AbstractTmfStateProvider.this.getClass().toString();
+            Long beginBuild = System.currentTimeMillis();
             while (event != END_EVENT) {
                 if (event == EMPTY_QUEUE_EVENT) {
                     /* Synchronization event, should be ignored */
@@ -202,6 +204,8 @@ public abstract class AbstractTmfStateProvider implements ITmfStateProvider {
             }
             /* We've received the last event, clean up */
             closeStateSystem();
+            Long endBuild = System.currentTimeMillis();
+            System.out.println("Analysis " + stateProviderName + " time: " + (endBuild - beginBuild));
         }
 
         private void closeStateSystem() {
