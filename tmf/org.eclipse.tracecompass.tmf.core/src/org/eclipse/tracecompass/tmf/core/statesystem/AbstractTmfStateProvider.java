@@ -206,6 +206,8 @@ public abstract class AbstractTmfStateProvider implements ITmfStateProvider {
             closeStateSystem();
             Long endBuild = System.currentTimeMillis();
             System.out.println("Analysis " + stateProviderName + " time: " + (endBuild - beginBuild));
+            System.out.println("\tBegin time: " + beginBuild);
+            System.out.println("\tEnd time: " + endBuild);
         }
 
         private void closeStateSystem() {
