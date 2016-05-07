@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
@@ -27,6 +29,7 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
         VirtualMachine host = sp.getCurrentMachine(event);
+        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         if (host != null && host.isGuest()) {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
@@ -57,7 +60,10 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
         FusedVMEventHandlerUtils.setProcessToRunning(timestamp, currentThreadNode, ss);
 
         /* Set the CPU status back to "busy" or "idle" */
-        FusedVMEventHandlerUtils.cpuExitInterrupt(timestamp, cpu, ss);
+//        FusedVMEventHandlerUtils.cpuExitInterrupt(timestamp, cpu, ss);
+        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
+        ITmfStateValue value = cpuObject.getStateBeforeIRQ();
+        ss.modifyAttribute(timestamp, value, quark);
 
     }
 

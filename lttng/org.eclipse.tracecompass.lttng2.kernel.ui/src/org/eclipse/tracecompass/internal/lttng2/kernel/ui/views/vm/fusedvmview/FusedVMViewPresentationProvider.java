@@ -176,6 +176,8 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                     state = State.IRQ;
                 } else if (value == StateValues.CPU_STATUS_SOFTIRQ) {
                     state = State.SOFT_IRQ;
+                } else if (value == StateValues.CPU_STATUS_SOFT_IRQ_RAISED) {
+                    state = State.SOFT_IRQ_RAISED;
                 } else if (value == StateValues.CPU_STATUS_IN_VM) {
                     state = State.IN_VM;
                 }

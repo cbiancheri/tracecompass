@@ -61,7 +61,7 @@ public class IrqEntryHandler extends VMKernelEventHandler {
         value = StateValues.PROCESS_STATUS_INTERRUPTED_VALUE;
         ss.modifyAttribute(timestamp, value, quark);
 
-        /* Change the status of the CPU to interrupted */
+        /* Change the status of the CPU to be interrupted */
         quark = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
         value = ss.queryOngoingState(quark);
 //        cpuObject.setCurrentState(value);

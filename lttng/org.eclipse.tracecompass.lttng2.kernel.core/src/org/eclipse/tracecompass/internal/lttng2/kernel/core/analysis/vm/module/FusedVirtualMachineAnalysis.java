@@ -26,11 +26,6 @@ import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
  */
 public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
 
-    /**
-     * The file name of the History Tree
-     */
-    public static final String HISTORY_TREE_FILE_NAME = "stateHistory.ht"; //$NON-NLS-1$
-
     /** The ID of this analysis module */
     public static final String ID = "org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis"; //$NON-NLS-1$
 
@@ -100,12 +95,6 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
         }
 
         return new FusedVirtualMachineStateProvider((TmfExperiment) trace, layout);
-    }
-
-    @Override
-    @NonNull
-    protected String getSsFileName() {
-        return HISTORY_TREE_FILE_NAME;
     }
 
     @Override
