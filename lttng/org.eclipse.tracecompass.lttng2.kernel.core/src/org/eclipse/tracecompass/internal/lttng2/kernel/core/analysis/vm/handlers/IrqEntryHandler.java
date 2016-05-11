@@ -2,6 +2,7 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handler
 
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
@@ -37,11 +38,13 @@ public class IrqEntryHandler extends VMKernelEventHandler {
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
         VirtualMachine host = sp.getCurrentMachine(event);
-//        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
+        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         if (host != null && host.isGuest()) {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
         Integer irqId = ((Long) event.getContent().getField(getLayout().fieldIrq()).getValue()).intValue();
@@ -64,8 +67,7 @@ public class IrqEntryHandler extends VMKernelEventHandler {
         /* Change the status of the CPU to be interrupted */
         quark = ss.getQuarkRelativeAndAdd(FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
         value = ss.queryOngoingState(quark);
-//        cpuObject.setCurrentState(value);
-//        cpuObject.setStateBeforeIRQ(value);
+        cpuObject.setStateBeforeIRQ(value);
         value = StateValues.CPU_STATUS_IRQ_VALUE;
         ss.modifyAttribute(timestamp, value, quark);
     }

@@ -35,6 +35,8 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
 
@@ -131,24 +133,14 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         if (nextTid > 0) {
             /* Check if the entering process is in kernel or user mode */
             quark = ss.getQuarkRelativeAndAdd(newCurrentThreadNode, Attributes.SYSTEM_CALL);
-            ITmfStateValue splitValue;
             ITmfStateValue queryOngoingState = ss.queryOngoingState(quark);
             if (queryOngoingState.isNull()) {
                 value = StateValues.CPU_STATUS_RUN_USERMODE_VALUE;
-                splitValue = StateValues.CPU_STATUS_SWITCH_TO_USERMODE_VALUE;
             } else {
                 value = StateValues.CPU_STATUS_RUN_SYSCALL_VALUE;
-                splitValue = StateValues.CPU_STATUS_SWITCH_TO_SYSCALL_VALUE;
             }
             quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
-            /*
-             * Add a state to split two consecutive same states.
-             */
-            /**
-             * TODO: find a better way to do that. The answer should be in the view.
-             */
-            ss.modifyAttribute(timestamp, splitValue, quark);
-            ss.modifyAttribute(timestamp + 1, value, quark);
+            ss.modifyAttribute(timestamp, value, quark);
         } else {
             value = StateValues.CPU_STATUS_IDLE_VALUE;
             quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);

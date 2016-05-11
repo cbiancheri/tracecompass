@@ -100,23 +100,10 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         ss.modifyAttribute(timestamp, value, machineNameQuark);
 
         /*
-         * When the states of the vm and the host are the same the transition is
-         * not detected by the view so we add a false state that lasts 1 ns to
-         * make the transition visible. TODO: Find a better way to handle this
-         * problem.
-         */
-        /*
          * Then the current state of the vm is restored.
          */
-        if (hostCpu.getCurrentState() == vcpu.getCurrentState()) {
-            value = StateValues.CPU_STATUS_IN_VM_VALUE;
-            ss.modifyAttribute(timestamp, value, quark);
-            value = vcpu.getCurrentState();
-            ss.modifyAttribute(timestamp + 1, value, quark);
-        } else {
-            value = vcpu.getCurrentState();
-            ss.modifyAttribute(timestamp, value, quark);
-        }
+        value = vcpu.getCurrentState();
+        ss.modifyAttribute(timestamp, value, quark);
 
         /*
          * Save the current thread of the host that was running.

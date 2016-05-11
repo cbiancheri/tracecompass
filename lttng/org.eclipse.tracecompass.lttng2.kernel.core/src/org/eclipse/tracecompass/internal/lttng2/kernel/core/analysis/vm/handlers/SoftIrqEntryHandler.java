@@ -30,6 +30,8 @@ public class SoftIrqEntryHandler extends VMKernelEventHandler {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
 

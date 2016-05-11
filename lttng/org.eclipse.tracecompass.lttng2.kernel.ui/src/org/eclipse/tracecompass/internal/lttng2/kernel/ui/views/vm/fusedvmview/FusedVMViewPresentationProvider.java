@@ -168,9 +168,9 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 State state = null;
                 if (value == StateValues.CPU_STATUS_IDLE) {
                     state = State.IDLE;
-                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE || value == StateValues.CPU_STATUS_SWITCH_TO_USERMODE) {
+                } else if (value == StateValues.CPU_STATUS_RUN_USERMODE) {
                     state = State.USERMODE;
-                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL || value == StateValues.CPU_STATUS_SWITCH_TO_SYSCALL) {
+                } else if (value == StateValues.CPU_STATUS_RUN_SYSCALL) {
                     state = State.SYSCALL;
                 } else if (value == StateValues.CPU_STATUS_IRQ) {
                     state = State.IRQ;

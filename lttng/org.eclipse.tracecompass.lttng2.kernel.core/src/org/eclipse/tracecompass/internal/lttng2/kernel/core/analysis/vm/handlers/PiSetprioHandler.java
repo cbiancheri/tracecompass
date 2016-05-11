@@ -29,6 +29,8 @@ public class PiSetprioHandler extends VMKernelEventHandler {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
         ITmfEventField content = event.getContent();

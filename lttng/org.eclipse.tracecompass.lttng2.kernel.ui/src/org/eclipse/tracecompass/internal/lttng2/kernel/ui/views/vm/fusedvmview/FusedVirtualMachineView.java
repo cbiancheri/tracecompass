@@ -606,8 +606,12 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     private static List<ITimeEvent> createCpuEventsList(TimeGraphEntry entry, ITmfStateSystem ssq, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark) {
         List<ITimeEvent> eventList;
         int statusQuark;
+        int machineQuark;
+        int currentThreadQuark;
         try {
             statusQuark = ssq.getQuarkRelative(quark, Attributes.STATUS);
+            machineQuark = ssq.getQuarkRelative(quark, Attributes.MACHINE_NAME);
+            currentThreadQuark = ssq.getQuarkRelative(quark, Attributes.CURRENT_THREAD);
         } catch (AttributeNotFoundException e) {
             /*
              * The sub-attribute "status" is not available. May happen if the
@@ -616,9 +620,21 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             return null;
         }
         eventList = new ArrayList<>(fullStates.size());
-        ITmfStateInterval lastInterval = prevFullState == null || statusQuark >= prevFullState.size() ? null : prevFullState.get(statusQuark);
-        long lastStartTime = lastInterval == null ? -1 : lastInterval.getStartTime();
-        long lastEndTime = lastInterval == null ? -1 : lastInterval.getEndTime() + 1;
+        /*
+         * In order to make the filter work, a time event must be generated for
+         * each change of cpu status, current thread or current machine.
+         */
+        ITmfStateInterval lastStatusInterval = prevFullState == null || statusQuark >= prevFullState.size() ? null : prevFullState.get(statusQuark);
+        ITmfStateInterval lastMachineInterval = prevFullState == null || machineQuark >= prevFullState.size() ? null : prevFullState.get(machineQuark);
+        ITmfStateInterval lastCurrentThreadInterval = prevFullState == null || currentThreadQuark >= prevFullState.size() ? null : prevFullState.get(currentThreadQuark);
+        long lastStatusStartTime = lastStatusInterval == null ? -1 : lastStatusInterval.getStartTime();
+        long lastStatusEndTime = lastStatusInterval == null ? -1 : lastStatusInterval.getEndTime() + 1;
+        long lastMachineStartTime = lastMachineInterval == null ? -1 : lastMachineInterval.getStartTime();
+        long lastMachineEndTime = lastMachineInterval == null ? -1 : lastMachineInterval.getEndTime() + 1;
+        long lastCurrentThreadStartTime = lastCurrentThreadInterval == null ? -1 : lastCurrentThreadInterval.getStartTime();
+        long lastCurrentThreadEndTime = lastCurrentThreadInterval == null ? -1 : lastCurrentThreadInterval.getEndTime() + 1;
+        long lastStartTime = max(lastStatusStartTime, max(lastMachineStartTime, lastCurrentThreadStartTime));
+        long lastEndTime = min(lastStatusEndTime, min(lastMachineEndTime, lastCurrentThreadEndTime));
         for (List<ITmfStateInterval> fullState : fullStates) {
             if (monitor.isCanceled()) {
                 return null;
@@ -628,9 +644,11 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 continue;
             }
             ITmfStateInterval statusInterval = fullState.get(statusQuark);
+            ITmfStateInterval machineInterval = fullState.get(machineQuark);
+            ITmfStateInterval currentThreadInterval = fullState.get(currentThreadQuark);
             int status = statusInterval.getStateValue().unboxInt();
-            long time = statusInterval.getStartTime();
-            long duration = statusInterval.getEndTime() - time + 1;
+            long time = max(statusInterval.getStartTime(), max(machineInterval.getStartTime(), currentThreadInterval.getStartTime()));
+            long duration = min(statusInterval.getEndTime(), min(machineInterval.getEndTime(), currentThreadInterval.getEndTime())) - time + 1;
             if (time == lastStartTime) {
                 continue;
             }
@@ -646,6 +664,26 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             lastEndTime = time + duration;
         }
         return eventList;
+    }
+
+    private static long min(long a, long b) {
+        if (a == -1) {
+            return b;
+        } else if (b == -1) {
+            return a;
+        } else {
+            return a < b ? a : b;
+        }
+    }
+
+    private static long max(long a, long b) {
+        if (a == -1) {
+            return b;
+        } else if (b == -1) {
+            return a;
+        } else {
+            return a < b ? b : a;
+        }
     }
 
     private static List<ITimeEvent> createIrqEventsList(TimeGraphEntry entry, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark) {

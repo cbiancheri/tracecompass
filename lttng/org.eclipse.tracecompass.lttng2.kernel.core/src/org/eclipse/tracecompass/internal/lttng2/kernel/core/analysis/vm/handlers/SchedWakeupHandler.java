@@ -29,6 +29,8 @@ public class SchedWakeupHandler extends VMKernelEventHandler {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
         String machineName = event.getTrace().getName();

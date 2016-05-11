@@ -25,6 +25,8 @@ public class ProcessFreeHandler extends VMKernelEventHandler {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
         Integer tid = ((Long) event.getContent().getField(getLayout().fieldTid()).getValue()).intValue();

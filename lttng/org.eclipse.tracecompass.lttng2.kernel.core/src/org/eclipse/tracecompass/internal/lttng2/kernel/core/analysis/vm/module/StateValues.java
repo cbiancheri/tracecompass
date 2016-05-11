@@ -36,8 +36,6 @@ public interface StateValues {
     int CPU_STATUS_SOFTIRQ = (1 << 3);
     int CPU_STATUS_IRQ = (1 << 4);
     int CPU_STATUS_IN_VM = (1 << 5);
-    int CPU_STATUS_SWITCH_TO_USERMODE =(1 << 6);
-    int CPU_STATUS_SWITCH_TO_SYSCALL = (1 << 7);
 
     ITmfStateValue CPU_STATUS_IDLE_VALUE = TmfStateValue.newValueInt(CPU_STATUS_IDLE);
     ITmfStateValue CPU_STATUS_RUN_USERMODE_VALUE = TmfStateValue.newValueInt(CPU_STATUS_RUN_USERMODE);
@@ -45,8 +43,6 @@ public interface StateValues {
     ITmfStateValue CPU_STATUS_IRQ_VALUE = TmfStateValue.newValueInt(CPU_STATUS_IRQ);
     ITmfStateValue CPU_STATUS_SOFTIRQ_VALUE = TmfStateValue.newValueInt(CPU_STATUS_SOFTIRQ);
     ITmfStateValue CPU_STATUS_IN_VM_VALUE = TmfStateValue.newValueInt(CPU_STATUS_IN_VM);
-    ITmfStateValue CPU_STATUS_SWITCH_TO_USERMODE_VALUE = TmfStateValue.newValueInt(CPU_STATUS_SWITCH_TO_USERMODE);
-    ITmfStateValue CPU_STATUS_SWITCH_TO_SYSCALL_VALUE = TmfStateValue.newValueInt(CPU_STATUS_SWITCH_TO_SYSCALL);
 
     /* CPU condition*/
     int CONDITION_IN_VM = 0;

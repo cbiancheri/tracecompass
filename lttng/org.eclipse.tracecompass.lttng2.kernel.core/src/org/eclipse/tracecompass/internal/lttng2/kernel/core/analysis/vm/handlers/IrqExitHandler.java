@@ -2,6 +2,8 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handler
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
+import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualMachine;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineStateProvider;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
@@ -24,11 +26,13 @@ public class IrqExitHandler extends VMKernelEventHandler {
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
         VirtualMachine host = sp.getCurrentMachine(event);
-//        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
+        VirtualCPU cpuObject = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         if (host != null && host.isGuest()) {
             Integer physicalCPU = sp.getPhysicalCPU(host, cpu);
             if (physicalCPU != null) {
                 cpu = physicalCPU;
+            } else {
+                return;
             }
         }
         int currentThreadNode = FusedVMEventHandlerUtils.getCurrentThreadNode(cpu, ss);
@@ -44,10 +48,9 @@ public class IrqExitHandler extends VMKernelEventHandler {
 
         /* Set the CPU status back to running or "idle" */
         FusedVMEventHandlerUtils.cpuExitInterrupt(timestamp, cpu, ss);
-//        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
-//        value = cpuObject.getStateBeforeIRQ();
-//        ss.modifyAttribute(timestamp, value, quark);
-//        cpuObject.getCurrentState();
+        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
+        value = cpuObject.getStateBeforeIRQ();
+        ss.modifyAttribute(timestamp, value, quark);
     }
 
 }
