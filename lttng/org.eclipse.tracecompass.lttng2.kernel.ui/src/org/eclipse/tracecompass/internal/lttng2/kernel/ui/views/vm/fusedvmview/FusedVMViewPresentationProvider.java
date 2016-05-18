@@ -164,7 +164,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
             int value = event.getValue();
 
-            if (entry.getType() == Type.CPU) {
+            if (entry.getType() == Type.CPU || entry.getType() == Type.PCPU) {
                 State state = null;
                 if (value == StateValues.CPU_STATUS_IDLE) {
                     state = State.IDLE;
@@ -205,7 +205,14 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         if (event instanceof NullTimeEvent) {
             return INVISIBLE;
         }
-        return TRANSPARENT;
+        /*
+         * TODO: find why some time events are created even if there is nothing
+         * for some VMs. Normally the filter by VM name in the
+         * createCpuEventsList in the FVMView should prevent the creation of
+         * those events.
+         */
+        return INVISIBLE;
+        // return TRANSPARENT;
     }
 
     @Override
@@ -288,7 +295,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
 
                 // Check for type CPU
-                else if (entry.getType().equals(Type.CPU)) {
+                else if (entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU)) {
                     int status = tcEvent.getValue();
 
                     if (status == StateValues.CPU_STATUS_IRQ) {
@@ -435,7 +442,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         }
 
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
-        if (!entry.getType().equals(Type.CPU)) {
+        if (!(entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU))) {
             return;
         }
 

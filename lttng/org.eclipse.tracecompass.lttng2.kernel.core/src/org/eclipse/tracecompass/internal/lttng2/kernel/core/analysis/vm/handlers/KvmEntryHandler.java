@@ -69,6 +69,10 @@ public class KvmEntryHandler extends VMKernelEventHandler {
             return;
         }
 
+        /* Remember that this VM is using this pcpu. */
+        int quarkPCPUs = FusedVMEventHandlerUtils.getMachinepCPUsNode(ss, virtualMachine.getTraceName());
+        ss.getQuarkRelativeAndAdd(quarkPCPUs, cpu.toString());
+
         VirtualCPU vcpu = sp.getVirtualCpu(ht);
         if (vcpu == null) {
             return;

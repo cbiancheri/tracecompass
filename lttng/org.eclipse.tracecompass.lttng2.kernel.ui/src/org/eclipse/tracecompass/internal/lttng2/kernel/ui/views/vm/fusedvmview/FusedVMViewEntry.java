@@ -18,10 +18,24 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
     /** Type of resource */
     public static enum Type {
         /** Null resources (filler rows, etc.) */
-        NULL, /** Entries for CPUs */
-        CPU, /** Entries for IRQs */
-        IRQ, /** Entries for Soft IRQ */
-        SOFT_IRQ
+        NULL,
+        /** Entries for CPUs */
+        CPU,
+        /** Entries for PCPUs of VMs and Containers */
+        PCPU,
+        /** Entries for IRQs */
+        IRQ,
+        /** Entries for Soft IRQ */
+        SOFT_IRQ;
+
+        @Override
+        public String toString() {
+            /* Every CPU displayed is a physical CPU. */
+            if (this == Type.CPU) {
+                return "PCPU";
+            }
+            return super.toString();
+        }
     }
 
     private final int fId;

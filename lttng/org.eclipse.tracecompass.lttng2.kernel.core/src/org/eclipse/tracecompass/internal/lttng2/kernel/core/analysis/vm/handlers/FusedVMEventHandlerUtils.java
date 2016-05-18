@@ -28,14 +28,40 @@ public class FusedVMEventHandlerUtils {
         return ssb.getQuarkAbsoluteAndAdd(Attributes.THREADS, machineName);
     }
 
+    /**
+     * Get the node Machines
+     *
+     * @param ssb
+     *            the state system
+     * @return the quark
+     */
     public static int getNodeMachines(ITmfStateSystemBuilder ssb) {
         return ssb.getQuarkAbsoluteAndAdd(Attributes.MACHINES);
     }
 
+    /**
+     * Return the cpu quark
+     *
+     * @param cpuNumber
+     *            number of the cpu
+     * @param ss
+     *            the state system
+     * @return the quark
+     */
     public static int getCurrentCPUNode(Integer cpuNumber, ITmfStateSystemBuilder ss) {
         return ss.getQuarkRelativeAndAdd(getNodeCPUs(ss), cpuNumber.toString());
     }
 
+    /**
+     * Get quark to current thread of a cpu
+     *
+     * @param cpuNumber
+     *            number of the cpu
+     * @param ss
+     *            the state system
+     * @return the quark
+     * @throws AttributeNotFoundException exception
+     */
     public static int getCurrentThreadNode(Integer cpuNumber, ITmfStateSystemBuilder ss) throws AttributeNotFoundException {
         /*
          * Shortcut for the "current thread" attribute node. It requires
@@ -250,8 +276,30 @@ public class FusedVMEventHandlerUtils {
                 StateValues.CPU_STATUS_RUN_SYSCALL_VALUE);
     }
 
+    /**
+     * Get Machine CPUs node
+     *
+     * @param ssq
+     *            the state system
+     * @param machineName
+     *            the machine's name
+     * @return the quark
+     */
     public static int getMachineCPUsNode(ITmfStateSystemBuilder ssq, String machineName) {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.CPUS);
+    }
+
+    /**
+     * Get Machine pCPUs node
+     *
+     * @param ssq
+     *            the state system
+     * @param machineName
+     *            the machine's name
+     * @return the quark
+     */
+    public static int getMachinepCPUsNode(ITmfStateSystemBuilder ssq, String machineName) {
+        return ssq.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.PCPUS);
     }
 
     /**
