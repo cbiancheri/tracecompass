@@ -23,8 +23,8 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseWheelListener;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
-import org.eclipse.tracecompass.analysis.os.linux.ui.views.controlflow.ControlFlowView;
+import org.eclipse.tracecompass.internal.analysis.os.linux.ui.views.controlflow.ControlFlowEntry;
+import org.eclipse.tracecompass.internal.analysis.os.linux.ui.views.controlflow.ControlFlowView;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVMInformationProvider;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
@@ -386,7 +386,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     }
 
     @Override
-    protected void buildEventList(ITmfTrace trace, ITmfTrace parentTrace, final IProgressMonitor monitor) {
+    protected void buildEntryList(ITmfTrace trace, ITmfTrace parentTrace, final IProgressMonitor monitor) {
         if (monitor.isCanceled()) {
             return;
         }

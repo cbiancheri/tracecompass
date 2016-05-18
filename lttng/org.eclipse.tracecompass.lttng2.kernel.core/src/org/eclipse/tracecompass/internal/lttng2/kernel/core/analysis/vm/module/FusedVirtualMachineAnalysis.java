@@ -10,7 +10,7 @@ import org.eclipse.tracecompass.analysis.os.linux.core.trace.DefaultEventLayout;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelTrace;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
-import org.eclipse.tracecompass.tmf.core.analysis.TmfAnalysisRequirement;
+import org.eclipse.tracecompass.tmf.core.analysis.requirements.TmfAbstractAnalysisRequirement;
 import org.eclipse.tracecompass.tmf.core.statesystem.ITmfStateProvider;
 import org.eclipse.tracecompass.tmf.core.statesystem.TmfStateSystemAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
@@ -59,7 +59,7 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
     // );
 
     /** The requirements as an immutable set */
-    private static final Set<TmfAnalysisRequirement> REQUIREMENTS;
+    private static final Set<TmfAbstractAnalysisRequirement> REQUIREMENTS;
 
     static {
         // /* initialize the requirement: domain and events */
@@ -103,7 +103,7 @@ public class FusedVirtualMachineAnalysis extends TmfStateSystemAnalysisModule {
     }
 
     @Override
-    public Iterable<TmfAnalysisRequirement> getAnalysisRequirements() {
+    public Iterable<TmfAbstractAnalysisRequirement> getAnalysisRequirements() {
         return REQUIREMENTS;
     }
 }

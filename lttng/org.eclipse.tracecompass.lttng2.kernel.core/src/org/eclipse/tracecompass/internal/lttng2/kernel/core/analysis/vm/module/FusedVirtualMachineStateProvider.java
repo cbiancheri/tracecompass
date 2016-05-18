@@ -228,9 +228,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                  */
                 currentVCpu = cpu;
                 cpu = getPhysicalCPU(host, cpu);
-                if (cpu != null && traceName.contains("vm2") && cpu != 1) {
-                    System.err.println("Event of vm2 seen on cpu: " + cpu);
-                }
                 replaceValueCpusInVM(cpu, true);
             } else {
                 replaceValueCpusInVM(cpu, false);
