@@ -316,7 +316,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                     break;
                                 }
                             }
-                        } catch (AttributeNotFoundException | TimeRangeException | StateValueTypeException e) {
+                        } catch (TimeRangeException | StateValueTypeException e) {
                             Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
                         } catch (StateSystemDisposedException e) {
                             /* Ignored */
@@ -340,7 +340,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                     break;
                                 }
                             }
-                        } catch (AttributeNotFoundException | TimeRangeException | StateValueTypeException e) {
+                        } catch (TimeRangeException | StateValueTypeException e) {
                             Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
                         } catch (StateSystemDisposedException e) {
                             /* Ignored */

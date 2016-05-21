@@ -456,9 +456,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                     if (ssq.querySingleState(trace.getStartTime().getValue(), quark).getStateValue().unboxInt() == StateValues.MACHINE_HOST) {
                         hostName = ssq.getAttributeName(quark);
                     }
-                } catch (AttributeNotFoundException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
                 } catch (StateSystemDisposedException e) {
                     e.printStackTrace();
                 }
