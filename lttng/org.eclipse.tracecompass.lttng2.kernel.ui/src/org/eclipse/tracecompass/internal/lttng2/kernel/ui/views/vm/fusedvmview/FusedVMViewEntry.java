@@ -21,17 +21,23 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
         NULL,
         /** Entries for CPUs */
         CPU,
-        /** Entries for PCPUs of VMs and Containers */
-        PCPU,
+        /** Entries for PCPUs of VMs */
+        PCPU_VM,
+        /** Entries for PCPUs of Containers */
+        PCPU_CONTAINER,
         /** Entries for IRQs */
         IRQ,
         /** Entries for Soft IRQ */
-        SOFT_IRQ;
+        SOFT_IRQ,
+        /** Entries for VM */
+        VM,
+        /** Entries for containers */
+        CONTAINER;
 
         @Override
         public String toString() {
             /* Every CPU displayed is a physical CPU. */
-            if (this == Type.CPU) {
+            if (this == Type.CPU || this == Type.PCPU_VM || this == Type.PCPU_CONTAINER) {
                 return "PCPU";
             }
             return super.toString();
@@ -155,7 +161,7 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
 
     @Override
     public boolean hasTimeEvents() {
-        if (fType == Type.NULL) {
+        if (fType == Type.NULL || fType == Type.VM || fType == Type.CONTAINER) {
             return false;
         }
         return true;

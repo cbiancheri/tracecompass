@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -320,7 +321,9 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         public int compare(ITimeGraphEntry o1, ITimeGraphEntry o2) {
             FusedVMViewEntry entry1 = (FusedVMViewEntry) o1;
             FusedVMViewEntry entry2 = (FusedVMViewEntry) o2;
-            if (entry1.getType() == Type.NULL && entry2.getType() == Type.NULL) {
+            Type typeE1 = entry1.getType();
+            Type typeE2 = entry2.getType();
+            if ((typeE1 == Type.NULL || typeE1 == Type.VM || typeE1 == Type.CONTAINER) && (typeE2 == Type.NULL || typeE2 == Type.VM || typeE2 == Type.CONTAINER)) {
                 /* sort trace entries alphabetically */
                 return entry1.getName().compareTo(entry2.getName());
             }
@@ -446,8 +449,23 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             long endTime = end + 1;
             setEndTime(Math.max(getEndTime(), endTime));
 
+            List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*");
+            String hostName = null;
+            for (int quark : machinesQuarks) {
+                try {
+                    if (ssq.querySingleState(trace.getStartTime().getValue(), quark).getStateValue().unboxInt() == StateValues.MACHINE_HOST) {
+                        hostName = ssq.getAttributeName(quark);
+                    }
+                } catch (AttributeNotFoundException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } catch (StateSystemDisposedException e) {
+                    e.printStackTrace();
+                }
+            }
+
             if (traceEntry == null) {
-                traceEntry = new FusedVMViewEntry(trace, trace.getName(), startTime, endTime, 0);
+                traceEntry = new FusedVMViewEntry(trace, hostName, startTime, endTime, 0);
                 traceEntry.sortChildren(comparator);
                 List<TimeGraphEntry> entryList = Collections.singletonList(traceEntry);
                 addToEntryList(parentTrace, ssq, entryList);
@@ -458,8 +476,23 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             List<Integer> cpuQuarks = ssq.getQuarks(Attributes.CPUS, "*"); //$NON-NLS-1$
             createCpuEntriesWithQuark(trace, ssq, entryMap, traceEntry, startTime, endTime, cpuQuarks);
             /* Create entries for machines. */
-            List<Integer> machinesQuarks = ssq.getQuarks(Attributes.MACHINES, "*");
+
             createMachineEntriesWithQuark(trace, ssq, entryMap, traceEntry, startTime, endTime, machinesQuarks);
+
+
+            List<Integer> containersQuarksWithRoot = ssq.getQuarks(Attributes.MACHINES, hostName, Attributes.CONTAINERS, "*");
+            List<Integer> containersQuarks = new LinkedList();
+            /* Remove root container */
+            for (int quark : containersQuarksWithRoot) {
+                if (!ssq.getAttributeName(quark).equals("4026531836")) {
+                    containersQuarks.add(quark);
+                }
+            }
+            if (!containersQuarks.isEmpty()) {
+                int containersQuark = ssq.getParentAttributeQuark(containersQuarks.get(0));
+                createContainerEntryWithQuark(trace, ssq, entryMap, startTime, endTime, traceEntry, containersQuarks, containersQuark, Type.PCPU_CONTAINER);
+            }
+
             if (parentTrace.equals(getTrace())) {
                 refresh();
             }
@@ -548,15 +581,29 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             if (pCPUsQuarks.isEmpty()) {
                 continue;
             }
+            int machinePCpusQuark = ssq.getParentAttributeQuark(pCPUsQuarks.get(0));
             FusedVMViewEntry machineEntry = entryMap.get(machineQuark);
             if (machineEntry == null) {
-                machineEntry = new FusedVMViewEntry(machineQuark, trace, machineName, startTime, endTime, Type.NULL, machineName.hashCode());
+                machineEntry = new FusedVMViewEntry(machineQuark, trace, machineName, startTime, endTime, Type.VM, machineName.hashCode());
                 entryMap.put(machineQuark, machineEntry);
                 virtualMachinesEntry.addChild(machineEntry);
             } else {
                 machineEntry.updateEndTime(endTime);
             }
-            createMachinePCpuEntryWithQuark(trace, ssq, entryMap, startTime, endTime, machineEntry, pCPUsQuarks, Type.PCPU);
+            createMachinePCpuEntryWithQuark(trace, ssq, entryMap, startTime, endTime, machineEntry, pCPUsQuarks, machinePCpusQuark, Type.PCPU_VM);
+            List<Integer> containersQuarksWithRoot = ssq.getQuarks(Attributes.MACHINES, machineName, Attributes.CONTAINERS, "*");
+            List<Integer> containersQuarks = new LinkedList();
+            /* Remove root container */
+            for (int quark : containersQuarksWithRoot) {
+                if (!ssq.getAttributeName(quark).equals("4026531836")) {
+                    containersQuarks.add(quark);
+                }
+            }
+            if (containersQuarks.isEmpty()) {
+                continue;
+            }
+            int containersQuark = ssq.getParentAttributeQuark(containersQuarks.get(0));
+            createContainerEntryWithQuark(trace, ssq, entryMap, startTime, endTime, machineEntry, containersQuarks, containersQuark, Type.PCPU_CONTAINER);
         }
     }
 
@@ -599,28 +646,6 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 interruptEntry = new FusedVMViewEntry(quark, trace, startTime, endTime, type, resourceId);
                 entryMap.put(quark, interruptEntry);
                 cpuEntry.addChild(interruptEntry);
-//                boolean found = false;
-//                for (ITimeGraphEntry rootElem : traceEntry.getChildren()) {
-//                    if (rootElem instanceof AggregateFusedVMViewEntry) {
-//                        AggregateFusedVMViewEntry aggregateInterruptEntry = (AggregateFusedVMViewEntry) rootElem;
-//                        if (aggregateInterruptEntry.getId() == resourceId && aggregateInterruptEntry.getType().equals(type)) {
-//                            found = true;
-//                            aggregateInterruptEntry.addContributor(interruptEntry);
-//                            final AggregateFusedVMViewEntry irqCpuEntry = new AggregateFusedVMViewEntry(trace, cpuEntry.getName(), startTime, endTime, type, cpuEntry.getId());
-//                            irqCpuEntry.addContributor(interruptEntry);
-//                            aggregateInterruptEntry.addChild(irqCpuEntry);
-//                            break;
-//                        }
-//                    }
-//                }
-//                if (!found) {
-//                    AggregateFusedVMViewEntry aggregateInterruptEntry = new AggregateFusedVMViewEntry(trace, startTime, endTime, type, resourceId);
-//                    aggregateInterruptEntry.addContributor(interruptEntry);
-//                    final AggregateFusedVMViewEntry irqCpuEntry = new AggregateFusedVMViewEntry(trace, cpuEntry.getName(), startTime, endTime, type, cpuEntry.getId());
-//                    irqCpuEntry.addContributor(interruptEntry);
-//                    aggregateInterruptEntry.addChild(irqCpuEntry);
-//                    traceEntry.addChild(aggregateInterruptEntry);
-//                }
             } else {
                 interruptEntry.updateEndTime(endTime);
             }
@@ -630,7 +655,15 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     private static void createMachinePCpuEntryWithQuark(@NonNull ITmfTrace trace,
             final ITmfStateSystem ssq, Map<Integer, FusedVMViewEntry> entryMap,
             long startTime, long endTime, FusedVMViewEntry machineEntry,
-            List<Integer> childrenQuarks, Type type) {
+            List<Integer> childrenQuarks, Integer pCpusQuark, Type type) {
+        FusedVMViewEntry pCpusEntry = entryMap.get(pCpusQuark);
+        if(pCpusEntry == null) {
+            pCpusEntry = new FusedVMViewEntry(pCpusQuark, trace, "Physical CPUs", startTime, endTime, Type.NULL, pCpusQuark);
+            entryMap.put(pCpusQuark, pCpusEntry);
+            machineEntry.addChild(pCpusEntry);
+        } else {
+            pCpusEntry.updateEndTime(endTime);
+        }
         for (Integer quark : childrenQuarks) {
             final @NonNull String pcpuName = ssq.getAttributeName(quark);
             int pcpu = Integer.parseInt(pcpuName);
@@ -645,7 +678,64 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                 }
                 pCpuEntry = new FusedVMViewEntry(pCpuQuark, trace, startTime, endTime, type, pcpu);
                 entryMap.put(quark, pCpuEntry);
-                machineEntry.addChild(pCpuEntry);
+                pCpusEntry.addChild(pCpuEntry);
+            } else {
+                pCpuEntry.updateEndTime(endTime);
+            }
+        }
+    }
+
+    private static void createContainerEntryWithQuark(@NonNull ITmfTrace trace,
+            final ITmfStateSystem ssq, Map<Integer, FusedVMViewEntry> entryMap,
+            long startTime, long endTime, TimeGraphEntry machineEntry,
+            List<Integer> containersQuarks, Integer containersQuark, Type type) {
+        FusedVMViewEntry containersEntry = entryMap.get(containersQuark);
+        if (containersEntry == null) {
+            containersEntry = new FusedVMViewEntry(containersQuark, trace, "Containers", startTime, endTime, Type.NULL, containersQuark);
+            entryMap.put(containersQuark, containersEntry);
+            machineEntry.addChild(containersEntry);
+        } else {
+            containersEntry.updateEndTime(endTime);
+        }
+        /* TODO: extract containers of this layer and create pcpus entries for them.
+         * Then for each one call recursively this method on them and their child. */
+        for (Integer quark : containersQuarks) {
+            List<Integer> pcpuQuarks = ssq.getQuarks(quark, Attributes.PCPUS, "*");
+            if (pcpuQuarks.isEmpty()) {
+                continue;
+            }
+            createContainerPCpuEntryWithQuark(trace, ssq, entryMap, startTime, endTime, containersEntry, pcpuQuarks, quark, type);
+        }
+    }
+
+    private static void createContainerPCpuEntryWithQuark(@NonNull ITmfTrace trace,
+            final ITmfStateSystem ssq, Map<Integer, FusedVMViewEntry> entryMap,
+            long startTime, long endTime, FusedVMViewEntry containersEntry,
+            List<Integer> pcpuQuarks, Integer containerQuark, Type type) {
+        String namespace = ssq.getAttributeName(containerQuark);
+        FusedVMViewEntry containerEntry = entryMap.get(containerQuark);
+        if(containerEntry == null) {
+            containerEntry = new FusedVMViewEntry(containerQuark, trace, namespace, startTime, endTime, Type.CONTAINER, containerQuark);
+            entryMap.put(containerQuark, containerEntry);
+            containersEntry.addChild(containerEntry);
+        } else {
+            containerEntry.updateEndTime(endTime);
+        }
+        for (Integer quark : pcpuQuarks) {
+            final @NonNull String pcpuName = ssq.getAttributeName(quark);
+            int pcpu = Integer.parseInt(pcpuName);
+            FusedVMViewEntry pCpuEntry = entryMap.get(quark);
+            if (pCpuEntry == null) {
+                Integer pCpuQuark = null;
+                try {
+                    pCpuQuark = ssq.getQuarkAbsolute(Attributes.CPUS, ssq.getAttributeName(quark));
+                } catch (AttributeNotFoundException e) {
+                    // TODO Auto-generated catch block
+                    return;
+                }
+                pCpuEntry = new FusedVMViewEntry(pCpuQuark, trace, startTime, endTime, type, pcpu);
+                entryMap.put(quark, pCpuEntry);
+                containerEntry.addChild(pCpuEntry);
             } else {
                 pCpuEntry.updateEndTime(endTime);
             }
@@ -659,23 +749,24 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         int quark = fusedVMViewEntry.getQuark();
 
         if (fusedVMViewEntry.getType().equals(Type.CPU)) {
-            return createCpuEventsList(entry, ssq, fullStates, prevFullState, monitor, quark, false);
+            return createCpuEventsList(entry, ssq, fullStates, prevFullState, monitor, quark, Type.CPU);
         } else if ((fusedVMViewEntry.getType().equals(Type.IRQ) || fusedVMViewEntry.getType().equals(Type.SOFT_IRQ)) && (quark >= 0)) {
             return createIrqEventsList(entry, fullStates, prevFullState, monitor, quark);
-        } else if (fusedVMViewEntry.getType().equals(Type.PCPU)) {
-            return createCpuEventsList(entry, ssq, fullStates, prevFullState, monitor, quark, true);
+        } else if (fusedVMViewEntry.getType().equals(Type.PCPU_VM)) {
+            return createCpuEventsList(entry, ssq, fullStates, prevFullState, monitor, quark, Type.PCPU_VM);
+        } else if (fusedVMViewEntry.getType().equals(Type.PCPU_CONTAINER)) {
+            return createCpuEventsList(entry, ssq, fullStates, prevFullState, monitor, quark, Type.PCPU_CONTAINER);
         }
-        /* TODO: case for type PCPU */
 
         return null;
     }
 
-    private static List<ITimeEvent> createCpuEventsList(TimeGraphEntry entry, ITmfStateSystem ssq, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark, boolean filterMachine) {
+    private static List<ITimeEvent> createCpuEventsList(TimeGraphEntry entry, ITmfStateSystem ssq, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark, Type type) {
         List<ITimeEvent> eventList;
         int statusQuark;
         int machineQuark;
         int currentThreadQuark;
-        String machineName = entry.getParent().getName();
+        String machineName = null;
         try {
             statusQuark = ssq.getQuarkRelative(quark, Attributes.STATUS);
             machineQuark = ssq.getQuarkRelative(quark, Attributes.MACHINE_NAME);
@@ -714,11 +805,39 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             }
             ITmfStateInterval statusInterval = fullState.get(statusQuark);
             ITmfStateInterval machineInterval = fullState.get(machineQuark);
-            if(filterMachine && !machineInterval.getStateValue().unboxStr().equals(machineName)) {
-                /* We filter by machine name because it is an entry under a machine. */
-                continue;
-            }
             ITmfStateInterval currentThreadInterval = fullState.get(currentThreadQuark);
+
+            if (type.equals(Type.CPU)) {
+                /* Just keep going */
+            } else if (type.equals(Type.PCPU_VM)) {
+                machineName = entry.getParent().getParent().getName();
+                if (!machineInterval.getStateValue().unboxStr().equals(machineName)) {
+                    /* Skip that interval, it's not related to the machine */
+                    continue;
+                }
+            } else if (type.equals(Type.PCPU_CONTAINER)) {
+                machineName = entry.getParent().getParent().getParent().getName();
+                if (!machineInterval.getStateValue().unboxStr().equals(machineName)) {
+                    /* Other machine, skip the interval */
+                    continue;
+                }
+                /* The ID of the parent of the entry should be the quark to the container */
+                int containerQuark = ((FusedVMViewEntry) entry.getParent()).getId();
+                int threadID = currentThreadInterval.getStateValue().unboxInt();
+                List<Integer> threadsQuarks = ssq.getQuarks(containerQuark, Attributes.THREADS, "*");
+                boolean foundThread = false;
+                for (Integer threadQuark : threadsQuarks) {
+                    if (Integer.parseInt(ssq.getAttributeName(threadQuark)) == threadID) {
+                        foundThread = true;
+                        break;
+                    }
+                }
+                if (!foundThread) {
+                    /* Thread not inside container, skip interval */
+                    continue;
+                }
+            }
+
             int status = statusInterval.getStateValue().unboxInt();
             long time = max(statusInterval.getStartTime(), max(machineInterval.getStartTime(), currentThreadInterval.getStartTime()));
             long duration = min(statusInterval.getEndTime(), min(machineInterval.getEndTime(), currentThreadInterval.getEndTime())) - time + 1;

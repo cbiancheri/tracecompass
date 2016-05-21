@@ -1,5 +1,6 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -7,8 +8,10 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attribut
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
+import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
 import org.eclipse.tracecompass.statesystem.core.exceptions.StateValueTypeException;
 import org.eclipse.tracecompass.statesystem.core.exceptions.TimeRangeException;
+import org.eclipse.tracecompass.statesystem.core.interval.ITmfStateInterval;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
@@ -328,6 +331,35 @@ public class FusedVMEventHandlerUtils {
      */
     public static int getNodeSoftIRQs(int cpuNumber, ITmfStateSystemBuilder ss) {
         return ss.getQuarkAbsoluteAndAdd(Attributes.CPUS, Integer.toString(cpuNumber), Attributes.SOFT_IRQS);
+    }
+
+    public static List<Long> getProcessNSIDs(ITmfStateSystemBuilder ss, Integer processQuark, long timestamp) throws AttributeNotFoundException {
+        List<Long> namespaces = new LinkedList();
+        List<Integer> listQuarks = ss.getQuarks(processQuark, Attributes.NS_MAX_LEVEL);
+        if (listQuarks.isEmpty()) {
+            return namespaces;
+        }
+        int nsMaxLevelQuark = listQuarks.get(0);
+        ITmfStateInterval interval;
+        try {
+            interval = ss.querySingleState(timestamp, nsMaxLevelQuark);
+            int nsMaxLevel = interval.getStateValue().unboxInt();
+            if (nsMaxLevel != 1) {
+                int actualLevel = 1;
+                int virtualTIDQuark = ss.getQuarkRelative(processQuark, Attributes.VTID);
+                actualLevel++;
+                while (actualLevel < nsMaxLevel) {
+                    virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.VTID);
+                    actualLevel++;
+                }
+                int namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.NS_INUM);
+                long namespaceID = ss.querySingleState(timestamp, namespaceIDQuark).getStateValue().unboxLong();
+                namespaces.add(namespaceID);
+            }
+        } catch (StateSystemDisposedException e) {
+            e.printStackTrace();
+        }
+        return namespaces;
     }
 
 

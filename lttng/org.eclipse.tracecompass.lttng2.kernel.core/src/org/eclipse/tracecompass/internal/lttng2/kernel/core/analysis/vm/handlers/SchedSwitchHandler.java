@@ -2,6 +2,8 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handler
 
 import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 
+import java.util.List;
+
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model.VirtualCPU;
@@ -56,6 +58,8 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         int nodeThreads = FusedVMEventHandlerUtils.getNodeThreads(ss);
         int formerThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, formerThreadAttributeName);
         int newCurrentThreadNode = ss.getQuarkRelativeAndAdd(nodeThreads, machineName, currenThreadAttributeName);
+        int currentMachineQuark = ss.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName);
+        int machineContainerQuark = ss.getQuarkRelativeAndAdd(currentMachineQuark, Attributes.CONTAINERS);
 
         long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         /* Set the status of the process that got scheduled out. */
@@ -80,6 +84,15 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
 
         /* Set the status of the CPU itself */
         ITmfStateValue stateCpu = setCpuStatus(ss, nextTid, newCurrentThreadNode, timestamp, currentCPUNode);
+
+        /* Remember the cpu used by the namespaces containing the next thread */
+        if (nextTid != 0) {
+            List<Long> namespaces = FusedVMEventHandlerUtils.getProcessNSIDs(ss, newCurrentThreadNode, timestamp);
+
+            for (Long namespace : namespaces) {
+                ss.getQuarkRelativeAndAdd(machineContainerQuark, namespace.toString(), Attributes.PCPUS, cpu.toString());
+            }
+        }
 
         cpuObject.setCurrentState(stateCpu);
         cpuObject.setCurrentThread(stateProcess);

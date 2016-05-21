@@ -74,10 +74,6 @@ public class FusedVMInformationProvider {
         return ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Integer.toString(tid));
     }
 
-//    public static int saveContainerThreadID(ITmfStateSystemBuilder ss, int quark, long vtid) {
-//        return ss.getQuarkRelativeAndAdd(quark, Attributes.THREADS, Long.toString(vtid));
-//    }
-
     public static int getMachineCPUsNode(ITmfStateSystemBuilder ssq, String machineName) {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.CPUS);
     }
@@ -101,4 +97,15 @@ public class FusedVMInformationProvider {
         return ssq.getQuarkRelative(quark, Attributes.NS_INUM);
     }
 
+//    public static int getParentContainerQuark(ITmfStateSystem ssq, int containerQuark) {
+//        int parentContainerIDQuark;
+//        try {
+//            parentContainerIDQuark = ssq.getQuarkRelative(containerQuark, Attributes.PARENT);
+//            long parentContainerID = ssq.queryOngoingState(parentContainerIDQuark).unboxLong();
+//
+//        } catch (AttributeNotFoundException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
+//    }
 }

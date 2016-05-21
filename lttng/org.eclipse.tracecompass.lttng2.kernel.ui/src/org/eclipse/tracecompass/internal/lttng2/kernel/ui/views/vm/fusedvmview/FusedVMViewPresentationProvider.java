@@ -164,7 +164,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
             int value = event.getValue();
 
-            if (entry.getType() == Type.CPU || entry.getType() == Type.PCPU) {
+            if (entry.getType() == Type.CPU || entry.getType() == Type.PCPU_VM || entry.getType() == Type.PCPU_CONTAINER) {
                 State state = null;
                 if (value == StateValues.CPU_STATUS_IDLE) {
                     state = State.IDLE;
@@ -212,7 +212,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
          * those events.
          */
         return INVISIBLE;
-        // return TRANSPARENT;
+//         return TRANSPARENT;
     }
 
     @Override
@@ -295,7 +295,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
 
                 // Check for type CPU
-                else if (entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU)) {
+                else if (entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU_VM) || entry.getType().equals(Type.PCPU_CONTAINER)) {
                     int status = tcEvent.getValue();
 
                     if (status == StateValues.CPU_STATUS_IRQ) {
@@ -442,7 +442,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
         }
 
         FusedVMViewEntry entry = (FusedVMViewEntry) event.getEntry();
-        if (!(entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU))) {
+        if (!(entry.getType().equals(Type.CPU) || entry.getType().equals(Type.PCPU_VM) || entry.getType().equals(Type.PCPU_CONTAINER))) {
             return;
         }
 
