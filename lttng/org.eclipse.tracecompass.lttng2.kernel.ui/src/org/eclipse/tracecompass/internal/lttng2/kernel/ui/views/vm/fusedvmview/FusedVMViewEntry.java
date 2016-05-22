@@ -95,6 +95,11 @@ public class FusedVMViewEntry extends TimeGraphEntry implements Comparable<ITime
         this(-1, trace, name, startTime, endTime, Type.NULL, id);
     }
 
+    public FusedVMViewEntry(@NonNull ITmfTrace trace, String name,
+            long startTime, long endTime, Type type, int id) {
+        this(-1, trace, name, startTime, endTime, type, id);
+    }
+
     /**
      * Constructor
      *

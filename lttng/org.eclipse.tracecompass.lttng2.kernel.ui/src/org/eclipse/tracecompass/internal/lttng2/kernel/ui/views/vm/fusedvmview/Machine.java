@@ -1,8 +1,10 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 
@@ -13,21 +15,40 @@ public class Machine {
     private Boolean highlighted;
     private int alpha;
     private Set<Processor> cpus = new HashSet<>();
+    private Set<Processor> pcpus = new HashSet<>();
     private Set<Machine> containers = new HashSet<>();
+    private Set<Machine> virtualMachines = new HashSet<>();
     private ITmfStateValue typeMachine;
 
-    public Machine(String name) {
+//    public Machine(String name) {
+//        machineName = name;
+//        highlighted = true;
+//    }
+
+    public Machine(String name, @NonNull ITmfStateValue type) {
         machineName = name;
         highlighted = true;
+        alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
+        typeMachine = type;
     }
 
-    public Machine(String name, Integer nbCPUs, ITmfStateValue type) {
+    public Machine(String name, Integer nbCPUs, @NonNull ITmfStateValue type) {
         machineName = name;
         highlighted = true;
         alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
         typeMachine = type;
         for (Integer i = 0; i < nbCPUs; i++) {
             cpus.add(new Processor(i.toString(), this));
+        }
+    }
+
+    public Machine(String name, @NonNull ITmfStateValue type, List<String> pcpus) {
+        machineName = name;
+        highlighted = true;
+        alpha = FusedVMViewPresentationProvider.fHighlightAlpha;
+        typeMachine = type;
+        for (String pcpu : pcpus) {
+            this.pcpus.add(new Processor(pcpu, this));
         }
     }
 
@@ -61,15 +82,30 @@ public class Machine {
         return containers;
     }
 
+    public Set<Machine> getVirtualMachines() {
+        return virtualMachines;
+    }
+
     public void addCpu(String cpu) {
         cpus.add(new Processor(cpu, this));
     }
 
+    public void addPCpu(String pcpu) {
+        pcpus.add(new Processor(pcpu, this));
+    }
+
     public void addContainer(Machine machine) {
-        if (machine.getTypeMachine() != StateValues.MACHINE_CONTAINER_VALUE) {
+        if (machine.getTypeMachine().unboxInt() != StateValues.MACHINE_CONTAINER) {
             return;
         }
         containers.add(machine);
+    }
+
+    public void addVirtualMachine(Machine machine) {
+        if (machine.getTypeMachine().unboxInt() != StateValues.MACHINE_GUEST) {
+            return;
+        }
+        virtualMachines.add(machine);
     }
 
     public Boolean isHighlighted() {
@@ -119,6 +155,10 @@ public class Machine {
 
     public Set<Processor> getCpus() {
         return cpus;
+    }
+
+    public Set<Processor> getPCpus() {
+        return pcpus;
     }
 
     public Boolean isCpuHighlighted(String p) {
@@ -244,5 +284,25 @@ public class Machine {
     @Override
     public String toString() {
         return machineName;
+    }
+
+    public void displayMachine() {
+        displayMachineRec(0);
+    }
+
+    private void displayMachineRec(int nbTab) {
+        String tab = "";
+        for (int i = 0; i < nbTab; i++) {
+            tab += "\t";
+        }
+        System.out.println(tab + "Machine: " + this);
+        System.out.println(tab + "\tVMs of " + this +  ":");
+        for (Machine vm : getVirtualMachines()) {
+            vm.displayMachineRec(nbTab + 2);
+        }
+        System.out.println(tab + "\tContainers of " + this +  ":");
+        for (Machine container : getContainers()) {
+            container.displayMachineRec(nbTab + 2);
+        }
     }
 }
