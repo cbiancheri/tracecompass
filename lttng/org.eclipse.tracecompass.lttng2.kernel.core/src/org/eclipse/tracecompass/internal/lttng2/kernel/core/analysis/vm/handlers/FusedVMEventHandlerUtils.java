@@ -348,13 +348,17 @@ public class FusedVMEventHandlerUtils {
                 int actualLevel = 1;
                 int virtualTIDQuark = ss.getQuarkRelative(processQuark, Attributes.VTID);
                 actualLevel++;
-                while (actualLevel < nsMaxLevel) {
-                    virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.VTID);
-                    actualLevel++;
-                }
                 int namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.NS_INUM);
                 long namespaceID = ss.querySingleState(timestamp, namespaceIDQuark).getStateValue().unboxLong();
                 namespaces.add(namespaceID);
+                while (actualLevel < nsMaxLevel) {
+                    virtualTIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.VTID);
+                    actualLevel++;
+                    namespaceIDQuark = ss.getQuarkRelative(virtualTIDQuark, Attributes.NS_INUM);
+                    namespaceID = ss.querySingleState(timestamp, namespaceIDQuark).getStateValue().unboxLong();
+                    namespaces.add(namespaceID);
+                }
+
             }
         } catch (StateSystemDisposedException e) {
             e.printStackTrace();

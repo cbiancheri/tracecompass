@@ -322,9 +322,23 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             FusedVMViewEntry entry2 = (FusedVMViewEntry) o2;
             Type typeE1 = entry1.getType();
             Type typeE2 = entry2.getType();
-            if ((typeE1 == Type.NULL || typeE1 == Type.VM || typeE1 == Type.CONTAINER) && (typeE2 == Type.NULL || typeE2 == Type.VM || typeE2 == Type.CONTAINER)) {
+            if ((typeE1 == Type.VM || typeE1 == Type.CONTAINER) && (typeE2 == Type.VM || typeE2 == Type.CONTAINER)) {
                 /* sort trace entries alphabetically */
                 return entry1.getName().compareTo(entry2.getName());
+            }
+            if (typeE1 == Type.NULL && typeE2 == Type.NULL) {
+                if (entry1.getName() == Messages.FusedVMView_PhysicalCpusEntry) {
+                    return -1;
+                }
+                if(entry2.getName() == Messages.FusedVMView_PhysicalCpusEntry) {
+                    return 1;
+                }
+                if(entry1.getName() == Messages.FusedVMView_ContainersEntry) {
+                    return 1;
+                }
+                if(entry2.getName() == Messages.FusedVMView_ContainersEntry) {
+                    return -1;
+                }
             }
             /* sort resource entries by their defined order */
             return entry1.compareTo(entry2);
