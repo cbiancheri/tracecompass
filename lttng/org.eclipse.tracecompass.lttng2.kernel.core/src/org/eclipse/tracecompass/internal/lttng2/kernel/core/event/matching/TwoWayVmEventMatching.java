@@ -156,10 +156,10 @@ public class TwoWayVmEventMatching implements ITmfMatchEventDefinition {
         /* Is the event a source or destination event */
         if ((evname.equals(QemuKvmStrings.VMSYNC_GH_HOST) || evname.equals(QemuKvmStrings.VMSYNC_HG_GUEST))
                 && canMatchEvent(event)) {
-            return Direction.CAUSE;
+            return Direction.EFFECT;
         } else if ((evname.equals(QemuKvmStrings.VMSYNC_GH_GUEST) || evname.equals(QemuKvmStrings.VMSYNC_HG_HOST))
                 && canMatchEvent(event)) {
-            return Direction.EFFECT;
+            return Direction.CAUSE;
         }
         return null;
     }
