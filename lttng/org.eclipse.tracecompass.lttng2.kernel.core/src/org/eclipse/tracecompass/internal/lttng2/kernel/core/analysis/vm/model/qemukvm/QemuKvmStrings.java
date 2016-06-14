@@ -63,10 +63,18 @@ public interface QemuKvmStrings {
      */
     String KVM_ENTRY = "kvm_entry";
     /**
+     * Same as above but for versions of lttng >= 2.8
+     */
+    String KVM_X86_ENTRY = "kvm_x86_entry";
+    /**
      * KVM kernel event indicating that virtual machine code is not run anymore,
      * but rather hypervisor-specific code
      */
     String KVM_EXIT = "kvm_exit";
+    /**
+     * Same as above but for versions of lttng >= 2.8
+     */
+    String KVM_X86_EXIT = "kvm_x86_exit";
     /**
      * Field from kvm_entry event indicating which virtual CPU is being run
      */

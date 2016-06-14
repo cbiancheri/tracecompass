@@ -12,6 +12,10 @@
 
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 
+import java.util.HashSet;
+
+import org.eclipse.jdt.annotation.Nullable;
+
 /**
  * This class represents a machine, host or guest, in a virtual machine model. A
  * machine is identified by a trace's host ID.
@@ -20,14 +24,21 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
  */
 public class VirtualMachine {
 
-    private static enum MachineType {
-        HOST, GUEST, CONTAINER
-    }
+    private static final int UNKNOWN = 0;
+    private static final int HOST = (1 << 0);
+    private static final int GUEST = (1 << 1);
+    private static final int CONTAINER = (1 << 2);
 
-    private final long fVmUid;
+    private long fVmUid;
     private final String fHostId;
-    private final MachineType fType;
+    private int fType;
     private final String fTraceName;
+    @Nullable private VirtualMachine fParent;
+    private HashSet<VirtualMachine> children = new HashSet<>();
+
+    public static VirtualMachine newUnknownMachine(String hostId, String traceName) {
+        return new VirtualMachine(UNKNOWN, hostId, -1, traceName);
+    }
 
     /**
      * Create a new host machine. A host is a physical machine that may contain
@@ -40,7 +51,7 @@ public class VirtualMachine {
      * @return A {@link VirtualMachine} of type host
      */
     public static VirtualMachine newHostMachine(String hostId, String traceName) {
-        return new VirtualMachine(MachineType.HOST, hostId, -1, traceName);
+        return new VirtualMachine(HOST, hostId, -1, traceName);
     }
 
     /**
@@ -57,7 +68,7 @@ public class VirtualMachine {
      * @return A {@link VirtualMachine} of type guest.
      */
     public static VirtualMachine newGuestMachine(long uid, String hostId, String traceName) {
-        return new VirtualMachine(MachineType.GUEST, hostId, uid, traceName);
+        return new VirtualMachine(GUEST, hostId, uid, traceName);
     }
 
     /**
@@ -74,14 +85,15 @@ public class VirtualMachine {
      * @return A {@link VirtualMachine} of type container.
      */
     public static VirtualMachine newContainerMachine(long uid, String hostId, String traceName) {
-        return new VirtualMachine(MachineType.CONTAINER, hostId, uid, traceName);
+        return new VirtualMachine(CONTAINER, hostId, uid, traceName);
     }
 
-    private VirtualMachine(MachineType type, String hostId, long uid, String traceName) {
+    private VirtualMachine(int type, String hostId, long uid, String traceName) {
         fType = type;
         fVmUid = uid;
         fHostId = hostId;
         fTraceName = traceName;
+        fParent = null;
     }
 
     /**
@@ -90,7 +102,18 @@ public class VirtualMachine {
      * @return {@code true} if the machine is a guest, or {@code false} if not
      */
     public boolean isGuest() {
-        return fType == MachineType.GUEST;
+        return (fType & GUEST) == GUEST;
+    }
+
+    /**
+     * Add the guest type to the machine
+     *
+     * @param uid
+     *            The ID of the virtual machine
+     */
+    public void setGuest(long uid) {
+        fType |= GUEST;
+        fVmUid = uid;
     }
 
     /**
@@ -99,7 +122,14 @@ public class VirtualMachine {
      * @return {@code true} if the machine is a host, or {@code false} if not
      */
     public boolean isHost() {
-        return fType == MachineType.HOST;
+        return (fType & HOST) == HOST;
+    }
+
+    /**
+     * Add the host type to the machine
+     */
+    public void setHost() {
+        fType |= HOST;
     }
 
     /**
@@ -109,7 +139,14 @@ public class VirtualMachine {
      *         not
      */
     public boolean isContainer() {
-        return fType == MachineType.CONTAINER;
+        return (fType & CONTAINER) == CONTAINER;
+    }
+
+    /**
+     * Add the container type to the machine
+     */
+    public void setContainer() {
+        fType |= CONTAINER;
     }
 
     /**
@@ -143,6 +180,53 @@ public class VirtualMachine {
     @Override
     public String toString() {
         return "VirtualMachine: " + fHostId; //$NON-NLS-1$
+    }
+
+    /**
+     * Get the children of the machine
+     *
+     * @return the children
+     */
+    public HashSet<VirtualMachine> getChildren() {
+        return children;
+    }
+
+    /**
+     * Add a child to the machine
+     *
+     * @param child
+     *            the child to add
+     */
+    public void addChild(VirtualMachine child) {
+        children.add(child);
+    }
+
+    /**
+     * Get the type of the machine
+     *
+     * @return the type of the machine
+     */
+    public int getType() {
+        return fType;
+    }
+
+    /**
+     * Get the parent
+     *
+     * @return the parent
+     */
+    public @Nullable VirtualMachine getParent() {
+        return fParent;
+    }
+
+    /**
+     * Set the parent
+     *
+     * @param parent
+     *            the parent
+     */
+    public void setParent(VirtualMachine parent) {
+        fParent = parent;
     }
 
 }

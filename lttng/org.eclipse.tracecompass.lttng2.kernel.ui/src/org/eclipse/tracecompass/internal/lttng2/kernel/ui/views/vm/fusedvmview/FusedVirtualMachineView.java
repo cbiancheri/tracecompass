@@ -1074,7 +1074,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             ITmfStateValue typeMachine = FusedVMInformationProvider.getTypeMachine(ssq, machineName);
 
             if (typeMachine != null) {
-                if (typeMachine.unboxInt() == StateValues.MACHINE_GUEST) {
+                if ((typeMachine.unboxInt() & StateValues.MACHINE_GUEST) == StateValues.MACHINE_GUEST) {
                     Machine machine = new Machine(machineName, typeMachine, FusedVMInformationProvider.getPCpusUsedByMachine(ssq, machineName));
                     guests.add(machine);
                 } else if (typeMachine.unboxInt() == StateValues.MACHINE_HOST) {
@@ -1088,12 +1088,29 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         }
         /* Complete construction for the host*/
         createContainersHierarchyForMachine(ssq, host);
+        createMachineHierarchy(ssq, host, guests);
         /* Create container hierarchy for guests and add them to the host */
         for (Machine guest : guests) {
             createContainersHierarchyForMachine(ssq, guest);
-            host.addVirtualMachine(guest);
         }
         return host;
+    }
+
+    private static void createMachineHierarchy(@NonNull ITmfStateSystem ssq, Machine host, List<Machine> guests) {
+        for (Machine m : guests) {
+            String parentName = FusedVMInformationProvider.getParentMachineName(ssq, m.getMachineName());
+            if (parentName.equals(host.getMachineName())){
+                m.setHost(host);
+                host.addVirtualMachine(m);
+            }
+            for (Machine m2 : guests) {
+                parentName = FusedVMInformationProvider.getParentMachineName(ssq, m2.getMachineName());
+                if (parentName.equals(m.getMachineName())){
+                    m2.setHost(m);
+                    m.addVirtualMachine(m2);
+                }
+            }
+        }
     }
 
     private static void createContainersHierarchyForMachine(@NonNull ITmfStateSystem ssq, Machine m) {

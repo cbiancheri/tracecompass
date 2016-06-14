@@ -17,6 +17,7 @@ import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
@@ -95,6 +96,7 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     private QemuKvmVmModel fModel;
     private LxcModel fContainerModel;
     private int currentThreadNode; // quark to current thread node
+    private boolean allRolesFound = false;
 
     // ------------------------------------------------------------------------
     // Constructor
@@ -115,7 +117,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         fLayout = layout;
         fEventNames = buildEventNames(layout);
         fModel = new QemuKvmVmModel(experiment);
-//        fContainerModel = new LxcModel(experiment);
         fContainerModel = new LxcModel();
         fCpusInVM = new HashMap<>();
 
@@ -198,7 +199,12 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
             return;
         }
 
-        VirtualMachine host = getCurrentMachine(event);
+        VirtualMachine host = null;
+        if (!allRolesFound()) {
+            host = getCurrentMachineAndAdd(event);
+        } else {
+            host = getCurrentMachine(event);
+        }
 
         String traceName = event.getTrace().getName();
 
@@ -208,13 +214,15 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         fModel.handleEvent(event);
 
 
-        // VirtualMachine container = getCurrentContainer(event);
-
         /*
          * Continue even if host is unknown if the event is required for
          * container analysis
          */
-        if (host == null && !fContainerModel.getRequiredEvents().contains(event.getName())) {
+//        if (host == null && !fContainerModel.getRequiredEvents().contains(event.getName()) && !allRolesFound()) {
+//            return;
+//        }
+
+        if (!fContainerModel.getRequiredEvents().contains(event.getName()) && !allRolesFound()) {
             return;
         }
 
@@ -250,7 +258,9 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         try {
             final ITmfStateSystemBuilder ss = checkNotNull(getStateSystemBuilder());
 
-            if (cpu != null) {
+            /**/
+            if (cpu != null && allRolesFound()) {
+//            if (cpu != null) {
                 /* Shortcut for the "current CPU" attribute node */
                 int currentCPUNode = ss.getQuarkRelativeAndAdd(getNodeCPUs(ss), cpu.toString());
 
@@ -259,7 +269,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                  */
                 int quarkCondition = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
                 ITmfStateValue valueCondition = StateValues.CONDITION_UNKNOWN_VALUE;
-                ITmfStateValue machineState = StateValues.MACHINE_UNKNOWN_VALUE;
                 int quarkMachines = getNodeMachines(ss);
                 int machineNameQuark = ss.getQuarkRelativeAndAdd(quarkMachines, traceName);
                 if (inVM) {
@@ -273,7 +282,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                      */
                     if (host != null && host.isGuest()) {
                         ss.getQuarkRelativeAndAdd(machineNameQuark, Attributes.CPUS, currentVCpu.toString());
-                        machineState = StateValues.MACHINE_GUEST_VALUE;
                     }
                 } else {
                     /*
@@ -283,25 +291,22 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
                      */
                     if (host != null && host.isGuest()) {
                         ss.getQuarkRelativeAndAdd(machineNameQuark, Attributes.CPUS, currentVCpu.toString());
-                        machineState = StateValues.MACHINE_GUEST_VALUE;
                     } else {
                         ss.getQuarkRelativeAndAdd(quarkMachines, traceName, Attributes.CPUS, cpu.toString());
-                        machineState = StateValues.MACHINE_HOST_VALUE;
                     }
-
                     valueCondition = StateValues.CONDITION_OUT_VM_VALUE;
                 }
-                /* Add the role of the machine in the state system */
-                if (ss.queryOngoingState(machineNameQuark).isNull()) {
-                    ss.modifyAttribute(getStartTime(), machineState, machineNameQuark);
-                }
+                /*
+                 * Add the role of the machine in the state system
+                 */
+                setMachinesRoles(ss);
+                setMachinesParents(ss);
+
+                /*
+                 * Set the condition value in the state system (in or out vm)
+                 */
                 ss.modifyAttribute(ts, valueCondition, quarkCondition);
 
-                // if (container != null) {
-                // int quarkMachines = getNodeMachines(ss);
-                // ss.getQuarkRelativeAndAdd(quarkMachines, traceName,
-                // String.valueOf(container.getVmUid()), cpu.toString());
-                // }
                 /*
                  * Shortcut for the "current thread" attribute node. It requires
                  * querying the current CPU's current thread.
@@ -397,29 +402,6 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         return ss.getQuarkRelativeAndAdd(getNodeThreads(ss, machineName), String.valueOf(thread));
     }
 
-//    public @Nullable HostThread getCurrentHostThread(ITmfEvent event, long ts) {
-//        /* Get the LTTng kernel analysis for the host */
-//        String hostId = event.getTrace().getHostId();
-//        @SuppressWarnings("null")
-//        KernelAnalysisModule module = TmfExperimentUtils.getAnalysisModuleOfClassForHost(getTrace(), hostId, KernelAnalysisModule.class);
-//        if (module == null) {
-//            return null;
-//        }
-//
-//        /* Get the CPU the event is running on */
-//        @SuppressWarnings("null")
-//        Integer cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);
-//        if (cpu == null) {
-//            /* We couldn't find any CPU information, ignore this event */
-//            return null;
-//        }
-//        Integer currentTid = KernelThreadInformationProvider.getThreadOnCpu(module, cpu, ts);
-//        if (currentTid == null) {
-//            return null;
-//        }
-//        return new HostThread(hostId, currentTid);
-//    }
-
     private boolean isSyscallEntry(String eventName) {
         return (eventName.startsWith(fLayout.eventSyscallEntryPrefix())
                 || eventName.startsWith(fLayout.eventCompatSyscallEntryPrefix()));
@@ -448,8 +430,12 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
         return physCpu.intValue();
     }
 
-    public @Nullable VirtualMachine getCurrentMachine(ITmfEvent event) {
+    public @Nullable VirtualMachine getCurrentMachineAndAdd(ITmfEvent event) {
         return fModel.getCurrentMachine(event);
+    }
+
+    public @Nullable VirtualMachine getCurrentMachine(ITmfEvent event) {
+        return getKnownMachines().get(event.getTrace().getHostId());
     }
 
     public @Nullable VirtualMachine getCurrentContainer(ITmfEvent event) {
@@ -473,11 +459,11 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
     }
 
     private static boolean isKvmEntry(String eventName) {
-        return eventName.equals(QemuKvmStrings.KVM_ENTRY);
+        return eventName.equals(QemuKvmStrings.KVM_ENTRY) || eventName.equals(QemuKvmStrings.KVM_X86_ENTRY);
     }
 
     private static boolean isKvmExit(String eventName) {
-        return eventName.equals(QemuKvmStrings.KVM_EXIT);
+        return eventName.equals(QemuKvmStrings.KVM_EXIT) || eventName.equals(QemuKvmStrings.KVM_X86_EXIT);
     }
 
     /**
@@ -487,5 +473,73 @@ public class FusedVirtualMachineStateProvider extends AbstractTmfStateProvider {
      */
     public Map<String, VirtualMachine> getKnownMachines() {
         return fModel.getKnownMachines();
+    }
+
+    /**
+     * Tell if all the roles of the machines were found
+     *
+     * @return true if all roles were found
+     */
+    private boolean allRolesFound() {
+        if (allRolesFound) {
+            return allRolesFound;
+        }
+        int numberOfMachines = numberOfIdentifiedMachines();
+        allRolesFound = getTrace().getTraces().size() == numberOfMachines;
+        return allRolesFound;
+    }
+
+    private int numberOfIdentifiedMachines() {
+        int numberOfMachines = 0;
+        for (VirtualMachine machine : getKnownMachines().values()) {
+            if (machine.isHost() && !machine.isGuest()) {
+                numberOfMachines++;
+                return numberOfIdentifiedMachinesRec(numberOfMachines, machine);
+            }
+        }
+        return numberOfMachines;
+    }
+
+    private int numberOfIdentifiedMachinesRec(int numberOfMachines, VirtualMachine machine) {
+        int nbMachines = numberOfMachines;
+        for (VirtualMachine child : machine.getChildren()) {
+            child.setParent(machine);
+            nbMachines++;
+            nbMachines = numberOfIdentifiedMachinesRec(nbMachines, child);
+        }
+        return nbMachines;
+    }
+
+    private void setMachinesRoles(ITmfStateSystemBuilder ss) {
+        @NonNull
+        Map<@NonNull String, @NonNull VirtualMachine> knownMachines = getKnownMachines();
+
+        for (VirtualMachine machine : knownMachines.values()) {
+            String machineName = machine.getTraceName();
+            int machineQuark = ss.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName);
+            ITmfStateValue machineType = ss.queryOngoingState(machineQuark);
+            if (!machineType.isNull()) {
+                return;
+            }
+            ss.modifyAttribute(getStartTime(), TmfStateValue.newValueInt(machine.getType()), machineQuark);
+
+        }
+    }
+
+    private void setMachinesParents(ITmfStateSystemBuilder ss) {
+        @NonNull
+        Map<@NonNull String, @NonNull VirtualMachine> knownMachines = getKnownMachines();
+        for (VirtualMachine machine : knownMachines.values()) {
+            String machineName = machine.getTraceName();
+            int parentQuark = ss.getQuarkAbsoluteAndAdd(Attributes.MACHINES, machineName, Attributes.PARENT);
+            ITmfStateValue parent = ss.queryOngoingState(parentQuark);
+            if (!parent.isNull()) {
+                return;
+            }
+            VirtualMachine parentMachine = machine.getParent();
+            if (parentMachine != null) {
+                ss.modifyAttribute(getStartTime(), TmfStateValue.newValueString(parentMachine.getTraceName()), parentQuark);
+            }
+        }
     }
 }

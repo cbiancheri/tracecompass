@@ -2,6 +2,7 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handler
 
 import java.util.List;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.os.linux.core.trace.IKernelAnalysisEventLayout;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.Attributes;
@@ -53,7 +54,8 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
         List<Integer> softIrqs = ss.getSubAttributes(ss.getParentAttributeQuark(quark), false);
         /* Only set status to running and no exit if ALL softirqs are exited. */
         for (Integer softIrq : softIrqs) {
-            if (!ss.queryOngoingState(softIrq).isNull()) {
+            @NonNull ITmfStateValue irqStateValue = ss.queryOngoingState(softIrq);
+            if (!irqStateValue.isNull()) { // && !(irqStateValue.unboxInt() == StateValues.CPU_STATUS_IRQ)) {
                 return;
             }
         }

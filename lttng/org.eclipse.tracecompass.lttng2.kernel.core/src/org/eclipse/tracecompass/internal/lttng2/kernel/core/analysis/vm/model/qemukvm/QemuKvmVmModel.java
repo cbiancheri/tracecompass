@@ -64,7 +64,9 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
 
     static final ImmutableSet<String> REQUIRED_EVENTS = ImmutableSet.of(
             QemuKvmStrings.KVM_ENTRY,
+            QemuKvmStrings.KVM_X86_ENTRY,
             QemuKvmStrings.KVM_EXIT,
+            QemuKvmStrings.KVM_X86_EXIT,
             QemuKvmStrings.VMSYNC_GH_GUEST,
             QemuKvmStrings.VMSYNC_GH_HOST,
             QemuKvmStrings.VMSYNC_HG_GUEST,
@@ -79,6 +81,7 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
      */
     public QemuKvmVmModel(TmfExperiment exp) {
         fExperiment = exp;
+        /* If there is only one trace we consider it as a host */
         if (exp.getTraces().size() == 1) {
             ITmfTrace trace = exp.getTraces().get(0);
             AddKnownMachine(VirtualMachine.newHostMachine(trace.getHostId(), trace.getName()));
@@ -89,13 +92,14 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     public @Nullable VirtualMachine getCurrentMachine(ITmfEvent event) {
         final String hostId = event.getTrace().getHostId();
         VirtualMachine machine = fKnownMachines.get(hostId);
-        if (machine != null) {
-            return machine;
-        }
+//        if (machine != null) {
+//            return machine;
+//        }
 
         /*
          * TODO: This model wouldn't support a machine (same hostId) being both
          * a guest and a host
+         * Cédric: working on that
          */
 
         /*
@@ -111,13 +115,22 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
         }
         if (eventName.startsWith(KVM)) {
             /* Only the host machine has kvm_* events, so this is a host */
+            if (machine != null) {
+                machine.setHost();
+                return machine;
+            }
             machine = VirtualMachine.newHostMachine(hostId, traceName);
         } else if (eventName.equals(QemuKvmStrings.VMSYNC_GH_GUEST) || eventName.equals(QemuKvmStrings.VMSYNC_HG_GUEST)) {
             /* Those events are only present in the guests */
             TmfEventField field = (TmfEventField) event.getContent();
             ITmfEventField data = field.getField(QemuKvmStrings.VM_UID_PAYLOAD);
             if (data != null) {
-                machine = VirtualMachine.newGuestMachine((Long) data.getValue(), hostId, traceName);
+                Long uid = (Long) data.getValue();
+                if (machine != null) {
+                    machine.setGuest(uid);
+                    return machine;
+                }
+                machine = VirtualMachine.newGuestMachine(uid, hostId, traceName);
             }
         }
         if (machine != null) {
@@ -168,7 +181,7 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
          * The KVM_ENTRY event means we are entering a virtual CPU, so exiting
          * hypervisor mode
          */
-        if (!eventName.equals(QemuKvmStrings.KVM_ENTRY)) {
+        if (!(eventName.equals(QemuKvmStrings.KVM_ENTRY) || eventName.equals(QemuKvmStrings.KVM_X86_ENTRY))) {
             return null;
         }
 
@@ -238,12 +251,17 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
                 return;
             }
             long vmUid = (Long) data.getValue();
-            for (Entry<String, VirtualMachine> entry : fKnownMachines.entrySet()) {
-                if (entry.getValue().getVmUid() == vmUid) {
+            for (VirtualMachine machine : fKnownMachines.values()) {
+                if (machine.getVmUid() == vmUid) {
                     /*
                      * We found the VM being run, let's associate it with the
                      * thread ID
                      */
+                    /* But before lets add the vm to its host */
+                    VirtualMachine host = fKnownMachines.get(event.getTrace().getHostId());
+                    if (host != null) {
+                        host.addChild(machine);
+                    }
                     KernelAnalysisModule module = getLttngKernelModuleFor(hostId);
                     if (module == null) {
                         break;
@@ -257,7 +275,7 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
                         break;
                     }
                     HostThread ht = new HostThread(hostId, tid);
-                    fTidToVm.put(ht, entry.getValue());
+                    fTidToVm.put(ht, machine);
 
                     /*
                      * To make sure siblings are also associated with this VM,
@@ -266,12 +284,13 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
                     Integer ppid = KernelThreadInformationProvider.getParentPid(module, tid, ts);
                     if (ppid != null) {
                         HostThread parentHt = new HostThread(hostId, ppid);
-                        fTidToVm.put(parentHt, entry.getValue());
+                        fTidToVm.put(parentHt, machine);
                     }
                 }
             }
             break;
         case QemuKvmStrings.KVM_ENTRY:
+        case QemuKvmStrings.KVM_X86_ENTRY:
             hostId = event.getTrace().getHostId();
             ts = event.getTimestamp().getValue();
             cpu = TmfTraceUtils.resolveIntEventAspectOfClassForEvent(event.getTrace(), TmfCpuAspect.class, event);

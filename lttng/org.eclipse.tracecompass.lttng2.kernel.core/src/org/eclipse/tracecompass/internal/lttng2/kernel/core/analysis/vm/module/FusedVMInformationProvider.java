@@ -118,14 +118,23 @@ public class FusedVMInformationProvider {
             parentContainerIDQuark = ssq.getQuarkRelative(containerQuark, Attributes.PARENT);
             parentContainerID = ssq.querySingleState(ssq.getStartTime(), parentContainerIDQuark).getStateValue().unboxLong();
 
-        } catch (AttributeNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (StateSystemDisposedException e) {
+        } catch (AttributeNotFoundException | StateSystemDisposedException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
         return parentContainerID;
+    }
+
+    public static String getParentMachineName(ITmfStateSystem ssq, String machineName) {
+        String parentName = ""; //$NON-NLS-1$
+        try {
+            int parentNameQuark = ssq.getQuarkAbsolute(Attributes.MACHINES, machineName, Attributes.PARENT);
+            parentName = ssq.querySingleState(ssq.getStartTime(), parentNameQuark).getStateValue().unboxStr();
+        } catch (AttributeNotFoundException | StateSystemDisposedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return parentName;
     }
 
     public static List<String> getPCpusUsedByMachine(ITmfStateSystem ssq, String machineName) {
@@ -135,7 +144,7 @@ public class FusedVMInformationProvider {
         if (type == null) {
             return pcpus;
         }
-        if (type.unboxInt() == StateValues.MACHINE_GUEST) {
+        if ((type.unboxInt() & StateValues.MACHINE_GUEST) == StateValues.MACHINE_GUEST) {
             pCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, Attributes.PCPUS, "*"); //$NON-NLS-1$
         } else if (type.unboxInt() == StateValues.MACHINE_HOST) {
             pCpuquarks = ssq.getQuarks(Attributes.MACHINES, machineName, Attributes.CPUS, "*"); //$NON-NLS-1$

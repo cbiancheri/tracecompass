@@ -95,14 +95,14 @@ public class Machine {
     }
 
     public void addContainer(Machine machine) {
-        if (machine.getTypeMachine().unboxInt() != StateValues.MACHINE_CONTAINER) {
+        if ((machine.getTypeMachine().unboxInt() & StateValues.MACHINE_CONTAINER) != StateValues.MACHINE_CONTAINER) {
             return;
         }
         containers.add(machine);
     }
 
     public void addVirtualMachine(Machine machine) {
-        if (machine.getTypeMachine().unboxInt() != StateValues.MACHINE_GUEST) {
+        if ((machine.getTypeMachine().unboxInt() & StateValues.MACHINE_GUEST) != StateValues.MACHINE_GUEST) {
             return;
         }
         virtualMachines.add(machine);

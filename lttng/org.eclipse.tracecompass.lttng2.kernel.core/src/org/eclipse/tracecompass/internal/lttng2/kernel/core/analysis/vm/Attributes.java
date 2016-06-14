@@ -43,7 +43,7 @@ public interface Attributes {
     String CONTAINERS = "Containers";
     String PCPUS = "pCPUs";
 
-    /* Sub-attributes of a Container */
+    /* Sub-attributes of a Container (also used for machines) */
     String PARENT = "Parent";
 
     /** @since 1.0 */

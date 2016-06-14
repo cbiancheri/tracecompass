@@ -14,13 +14,14 @@ import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 public interface StateValues {
 
     /* Machine Status*/
-    int MACHINE_HOST = 0;
-    int MACHINE_GUEST = 1;
-    int MACHINE_CONTAINER = 2;
-    int MACHINE_UNKNOWN = 3;
+    int MACHINE_HOST = (1 << 0);
+    int MACHINE_GUEST = (1 << 1);
+    int MACHINE_CONTAINER = (1 << 2);
+    int MACHINE_UNKNOWN = (1 << 3);
 
     ITmfStateValue MACHINE_HOST_VALUE = TmfStateValue.newValueInt(MACHINE_HOST);
     ITmfStateValue MACHINE_GUEST_VALUE = TmfStateValue.newValueInt(MACHINE_GUEST);
+    ITmfStateValue MACHINE_HOST_AND_GUEST_VALUE = TmfStateValue.newValueInt(MACHINE_HOST + MACHINE_GUEST);
     ITmfStateValue MACHINE_CONTAINER_VALUE = TmfStateValue.newValueInt(MACHINE_CONTAINER);
     ITmfStateValue MACHINE_UNKNOWN_VALUE = TmfStateValue.newValueInt(MACHINE_UNKNOWN);
 
