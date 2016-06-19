@@ -79,5 +79,12 @@ public interface QemuKvmStrings {
      * Field from kvm_entry event indicating which virtual CPU is being run
      */
     String VCPU_ID = "vcpu_id";
-
+    /**
+     * Event that can indicate a future entry from L0 to a nested VM
+     */
+    String KVM_MMU_GET_PAGE = "kvm_mmu_get_page";
+    /**
+     * Event that tells that the next entries are not for the VM that exited
+     */
+    String KVM_NESTED_VMEXIT_INJECT = "kvm_nested_vmexit_inject";
 }

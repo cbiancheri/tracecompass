@@ -1,5 +1,7 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.handlers;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -364,6 +366,37 @@ public class FusedVMEventHandlerUtils {
             e.printStackTrace();
         }
         return namespaces;
+    }
+
+
+    // Method for debug purpose
+    // Transform timestamp to something readable: hh:mm:ss
+    public static String formatTime(long time) {
+
+        return formatTimeAbs(time);
+    }
+
+    public static String formatNs(long srcTime) {
+        StringBuffer str = new StringBuffer();
+        long ns = Math.abs(srcTime % 1000000000);
+        String nanos = Long.toString(ns);
+        str.append("000000000".substring(nanos.length())); //$NON-NLS-1$
+        str.append(nanos);
+        return str.substring(0, 9);
+    }
+
+    public static String formatTimeAbs(long time) {
+        StringBuffer str = new StringBuffer();
+
+        // format time from nanoseconds to calendar time HH:MM:SS
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+        String stime = timeFormat.format(new Date(time / 1000000));
+        str.append(stime);
+        str.append('.');
+        // append the Milliseconds, MicroSeconds and NanoSeconds as specified in
+        // the Resolution
+        str.append(formatNs(time));
+        return str.toString();
     }
 
 

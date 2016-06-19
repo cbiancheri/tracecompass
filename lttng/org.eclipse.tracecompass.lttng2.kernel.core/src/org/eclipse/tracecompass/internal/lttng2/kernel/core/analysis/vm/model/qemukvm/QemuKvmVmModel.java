@@ -229,6 +229,7 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     public void handleEvent(ITmfEvent event) {
         /* Is the event handled by this model */
         final String eventName = event.getName();
+        VirtualMachine host = fKnownMachines.get(event.getTrace().getHostId());
         switch (eventName) {
         case QemuKvmStrings.VMSYNC_GH_HOST:
             if (!eventName.equals(QemuKvmStrings.VMSYNC_GH_HOST)) {
@@ -250,6 +251,7 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
             if (data == null) {
                 return;
             }
+
             long vmUid = (Long) data.getValue();
             for (VirtualMachine machine : fKnownMachines.values()) {
                 if (machine.getVmUid() == vmUid) {
@@ -258,7 +260,6 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
                      * thread ID
                      */
                     /* But before lets add the vm to its host */
-                    VirtualMachine host = fKnownMachines.get(event.getTrace().getHostId());
                     if (host != null) {
                         host.addChild(machine);
                     }
@@ -345,6 +346,24 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     }
 
     /**
+     * Return the host thread running a specific virtual cpu or null if it
+     * doesn't exist.
+     *
+     * @param virtualCPU
+     *            The virtual cpu
+     * @return the host thread
+     */
+    public @Nullable HostThread getHostThreadFromVCpu(VirtualCPU virtualCPU) {
+        for (Entry<HostThread, VirtualCPU> entry : fTidToVcpu.entrySet()) {
+            VirtualCPU vcpu = entry.getValue();
+            if (vcpu.getVm().getHostId().equals(virtualCPU.getVm().getHostId()) && vcpu.getCpuId() == virtualCPU.getCpuId()) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    /**
      * Return the physical cpu where a vcpu is currently running.
      *
      * @param virtualMachine
@@ -354,7 +373,12 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
      * @return The physical cpu.
      */
     public @Nullable Long getPhysicalCpuFromVcpu(VirtualMachine virtualMachine, VirtualCPU vcpu) {
-        return fVirtualToPhysicalCpu.get(virtualMachine, vcpu);
+        Long pcpu = fVirtualToPhysicalCpu.get(virtualMachine, vcpu);
+        VirtualMachine parent = virtualMachine.getParent();
+        if (parent != null && parent.isGuest()) {
+            pcpu = fVirtualToPhysicalCpu.get(parent, VirtualCPU.getVirtualCPU(parent, pcpu));
+        }
+        return pcpu;
     }
 
     /**

@@ -15,6 +15,7 @@ package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.model;
 import java.util.HashSet;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.tracecompass.analysis.os.linux.core.model.HostThread;
 
 /**
  * This class represents a machine, host or guest, in a virtual machine model. A
@@ -35,6 +36,8 @@ public class VirtualMachine {
     private final String fTraceName;
     @Nullable private VirtualMachine fParent;
     private HashSet<VirtualMachine> children = new HashSet<>();
+    private HashSet<HostThread> threadsWaitingForNextLayer = new HashSet<>();
+    private HashSet<HostThread> threadsReadyForNextLayer = new HashSet<>();
 
     public static VirtualMachine newUnknownMachine(String hostId, String traceName) {
         return new VirtualMachine(UNKNOWN, hostId, -1, traceName);
@@ -227,6 +230,63 @@ public class VirtualMachine {
      */
     public void setParent(VirtualMachine parent) {
         fParent = parent;
+    }
+
+    /**
+     * Add a thread in the waiting for next level threads set. Meaning that we
+     * are waiting for a specific event before going to an upper layer.
+     *
+     * @param hostThread
+     *            the thread
+     */
+    public void addThreadWaitingForNextLayer(HostThread hostThread) {
+        threadsWaitingForNextLayer.add(hostThread);
+        threadsReadyForNextLayer.remove(hostThread);
+    }
+
+    /**
+     * Returns false if the thread is not in a waiting for next level state.
+     * Return true otherwise.
+     *
+     * @param hostThread
+     *            the thread
+     * @return true if the thread was ready
+     */
+    public boolean isThreadWaitingForNextLayer(HostThread hostThread) {
+        return threadsWaitingForNextLayer.contains(hostThread);
+    }
+
+    /**
+     * Put a thread in the ready state if it was in waiting state.
+     *
+     * @param hostThread
+     *            the thread
+     */
+    public void makeThreadReadyForNextLayer(HostThread hostThread) {
+        if (threadsWaitingForNextLayer.remove(hostThread)) {
+            threadsReadyForNextLayer.add(hostThread);
+        }
+    }
+
+    /**
+     * Return true if the thread is ready to go to the next layer.
+     *
+     * @param hostThread
+     *            the thread
+     * @return
+     */
+    public boolean isThreadReadyForNextLayer(HostThread hostThread) {
+        return threadsReadyForNextLayer.contains(hostThread);
+    }
+
+    /**
+     * Remove the thread from the ready for next level set.
+     *
+     * @param hostThread
+     *            the thread
+     */
+    public void removeThreadFromReadyForNextLayerSet(HostThread hostThread) {
+        threadsReadyForNextLayer.remove(hostThread);
     }
 
 }

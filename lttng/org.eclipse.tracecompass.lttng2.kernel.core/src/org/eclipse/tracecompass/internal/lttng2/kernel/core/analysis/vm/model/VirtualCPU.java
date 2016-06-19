@@ -39,6 +39,7 @@ public class VirtualCPU {
     /* Current thread of the cpu. */
     private ITmfStateValue currentThread;
     private ITmfStateValue stateBeforeIRQ;
+    @Nullable private VirtualCPU nextLayerVCPU;
 
     /**
      * Return the virtual CPU for to the virtual machine and requested CPU ID
@@ -72,6 +73,7 @@ public class VirtualCPU {
         currentState = StateValues.CPU_STATUS_IDLE_VALUE;
         currentThread = TmfStateValue.newValueInt(-1);
         stateBeforeIRQ = StateValues.CPU_STATUS_IDLE_VALUE;
+        nextLayerVCPU = null;
     }
 
     /**
@@ -143,6 +145,14 @@ public class VirtualCPU {
      */
     public void setStateBeforeIRQ(ITmfStateValue state) {
         stateBeforeIRQ = state;
+    }
+
+    public void setNextLayerVCPU(VirtualCPU vcpu) {
+        nextLayerVCPU = vcpu;
+    }
+
+    public @Nullable VirtualCPU getNextLayerVCPU() {
+        return nextLayerVCPU;
     }
 
 }

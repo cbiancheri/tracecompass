@@ -297,6 +297,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
     };
 
     private Machine machineHierarchy;
+    private HashMap<String, Machine> machines;
 
     // ------------------------------------------------------------------------
     // Constructors
@@ -424,6 +425,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         /* IF we don't wait we might don't see some machines */
         ssq.waitUntilBuilt();
 
+        machines = new HashMap<>();
         machineHierarchy = createHierarchy(ssq);
         if (machineHierarchy == null) {
             return;
@@ -717,7 +719,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         return null;
     }
 
-    private static List<ITimeEvent> createCpuEventsList(TimeGraphEntry entry, ITmfStateSystem ssq, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark, Type type) {
+    private List<ITimeEvent> createCpuEventsList(TimeGraphEntry entry, ITmfStateSystem ssq, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark, Type type) {
         List<ITimeEvent> eventList;
         int statusQuark;
         int machineQuark;
@@ -766,8 +768,10 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             if (type.equals(Type.CPU)) {
                 /* Just keep going */
             } else if (type.equals(Type.PCPU_VM)) {
+                // TODO: support vm's vms
                 machineName = entry.getParent().getParent().getName();
-                if (!machineInterval.getStateValue().unboxStr().equals(machineName)) {
+//                if (!machineInterval.getStateValue().unboxStr().equals(machineName)) {
+                if (!isInsideVM(machineInterval.getStateValue().unboxStr(), machineName)) {
                     /* Skip that interval, it's not related to the machine */
                     continue;
                 }
@@ -840,6 +844,29 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         } else {
             return a < b ? b : a;
         }
+    }
+
+    /**
+     * Return true if machine1 is a submachine of machine2
+     *
+     * @param machine1
+     * @param machine2
+     * @return
+     */
+    private boolean isInsideVM(String machine1, String machine2) {
+        if (machine1.equals(machine2)) {
+            return true;
+        }
+        Machine m2 = machines.get(machine2);
+        if (m2 == null) {
+            return false;
+        }
+        for (Machine child : m2.getVirtualMachines()) {
+            if (isInsideVM(machine1, child.getMachineName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static List<ITimeEvent> createIrqEventsList(TimeGraphEntry entry, List<List<ITmfStateInterval>> fullStates, List<ITmfStateInterval> prevFullState, IProgressMonitor monitor, int quark) {
@@ -1066,7 +1093,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         SelectMachineDialog.open(dataViewer.getShell(), getFusedVMViewPresentationProvider());
     }
 
-    private static Machine createHierarchy(@NonNull ITmfStateSystem ssq) {
+    private Machine createHierarchy(@NonNull ITmfStateSystem ssq) {
         /* Separate host from guests */
         Machine host = null;
         List<Machine> guests = new LinkedList<>();
@@ -1076,9 +1103,11 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
             if (typeMachine != null) {
                 if ((typeMachine.unboxInt() & StateValues.MACHINE_GUEST) == StateValues.MACHINE_GUEST) {
                     Machine machine = new Machine(machineName, typeMachine, FusedVMInformationProvider.getPCpusUsedByMachine(ssq, machineName));
+                    machines.put(machine.getMachineName(), machine);
                     guests.add(machine);
                 } else if (typeMachine.unboxInt() == StateValues.MACHINE_HOST) {
                     Machine machine = new Machine(machineName, typeMachine);
+                    machines.put(machine.getMachineName(), machine);
                     host = machine;
                 }
             }

@@ -27,6 +27,11 @@ public class KvmEntryHandler extends VMKernelEventHandler {
             return;
         }
         FusedVirtualMachineStateProvider sp = getStateProvider();
+        VirtualMachine host = sp.getCurrentMachine(event);
+        if (host == null) {
+            return;
+        }
+
         int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         /*
          * Shortcut for the "current thread" attribute node. It requires
@@ -37,13 +42,62 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         ITmfStateValue value = ss.queryOngoingState(quark);
         int thread = value.isNull() ? -1 : value.unboxInt();
 
-        VirtualMachine host = sp.getCurrentMachine(event);
-        if (host == null) {
+        thread = VirtualCPU.getVirtualCPU(host, cpu.longValue()).getCurrentThread().unboxInt();
+        if (thread == -1) {
             return;
         }
 
-        /* We are entering a vm. */
-        sp.replaceValueCpusInVM(cpu, true);
+        /* Special case where host is also a guest. */
+        if (host.isHost() && host.isGuest()) {
+            /*
+             * We are in L1. We are going to look for the vcpu of L2 we want to
+             * launch and keep it for later.
+             */
+            /* We need our actual VM's vcpu. */
+            VirtualCPU hostCpu = VirtualCPU.getVirtualCPU(host, cpu.longValue());
+
+            /* The corresponding thread object. */
+            HostThread ht = new HostThread(event.getTrace().getHostId(), thread);
+            /* To get the vcpu of L2. */
+            VirtualCPU nextLayerVCPU = sp.getVirtualCpu(ht);
+            /* And keep it in the vcpu of L1. L0 will use it later. */
+            hostCpu.setNextLayerVCPU(nextLayerVCPU);
+            if (nextLayerVCPU != null) {
+                /*
+                 * Get the next layer vm to then remember wich thread runs its
+                 * vcpu.
+                 */
+                VirtualMachine nextLayerVM = nextLayerVCPU.getVm();
+
+                /*
+                 * If not already done, associate the TID in the host corresponding to
+                 * the vCPU inside the state system.
+                 */
+                int quarkVCPUs = FusedVMEventHandlerUtils.getMachineCPUsNode(ss, nextLayerVM.getTraceName());
+                int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkVCPUs, nextLayerVCPU.getCpuId().toString());
+                if (ss.queryOngoingState(quarkVCPU).isNull()) {
+                    ss.modifyAttribute(sp.getStartTime(), TmfStateValue.newValueInt(thread), quarkVCPU);
+                }
+            }
+
+            /*
+             * We also need to tell L0 that its thread running this vcpu of L1
+             * wants to run L2, so that we are waiting for a kvm_mmu_get_page.
+             */
+            VirtualMachine parent = host.getParent();
+            if (parent == null) {
+                /* This should not happen. */
+                System.err.println("Parent not found in KvmEntryHandler. This should never happen.");
+                return;
+            }
+            HostThread parentThread = sp.getHostThreadFromVCpu(hostCpu);
+            parent.addThreadWaitingForNextLayer(parentThread);
+
+            /* Nothing else to do, get out of here. */
+            return;
+        }
+
+
 
         /* Add the condition in_vm in the state system. */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CONDITION);
@@ -51,13 +105,13 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         long timestamp = FusedVMEventHandlerUtils.getTimestamp(event);
         ss.modifyAttribute(timestamp, value, quark);
 
-        quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
 
         /* Get the host CPU doing the kvm_entry. */
         VirtualCPU hostCpu = VirtualCPU.getVirtualCPU(host, cpu.longValue());
         /*
          * Saves the state. Will be restored after a kvm_exit.
          */
+        quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         ITmfStateValue ongoingState = ss.queryOngoingState(quark);
         hostCpu.setCurrentState(ongoingState);
         /*
@@ -69,27 +123,40 @@ public class KvmEntryHandler extends VMKernelEventHandler {
             return;
         }
 
-        /* Remember that this VM is using this pcpu. */
-        int quarkPCPUs = FusedVMEventHandlerUtils.getMachinepCPUsNode(ss, virtualMachine.getTraceName());
-        ss.getQuarkRelativeAndAdd(quarkPCPUs, cpu.toString());
-
         VirtualCPU vcpu = sp.getVirtualCpu(ht);
         if (vcpu == null) {
             return;
         }
 
-        Integer currentVCpu = vcpu.getCpuId().intValue();
-
-        /*
-         * If not already done, associate the TID in the host corresponding to
-         * the vCPU inside the state system.
-         */
-        int quarkVCPUs = FusedVMEventHandlerUtils.getMachineCPUsNode(ss, virtualMachine.getTraceName());
-        int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkVCPUs, vcpu.getCpuId().toString());
-        if (ss.queryOngoingState(quarkVCPU).isNull()) {
-            ss.modifyAttribute(timestamp, TmfStateValue.newValueInt(thread), quarkVCPU);
+        /* Check if we need to jump to the next layer. */
+        if (host.isThreadReadyForNextLayer(ht)) {
+            /*
+             * Then we need to go to the next layer by replacing the vcpu and
+             * the vm by the one in the next layer.
+             */
+            vcpu = vcpu.getNextLayerVCPU();
+            if (vcpu == null) {
+                return;
+            }
+            virtualMachine = vcpu.getVm();
+        } else {
+            /*
+             * If not already done, associate the TID in the host corresponding to
+             * the vCPU inside the state system. We only do that if we are not going to the next layer.
+             */
+            int quarkVCPUs = FusedVMEventHandlerUtils.getMachineCPUsNode(ss, virtualMachine.getTraceName());
+            int quarkVCPU = ss.getQuarkRelativeAndAdd(quarkVCPUs, vcpu.getCpuId().toString());
+            if (ss.queryOngoingState(quarkVCPU).isNull()) {
+                ss.modifyAttribute(timestamp, TmfStateValue.newValueInt(thread), quarkVCPU);
+            }
         }
+        /* Now we put this vcpu on the pcpu. */
 
+        /* Remember that this VM is using this pcpu. */
+        int quarkPCPUs = FusedVMEventHandlerUtils.getMachinepCPUsNode(ss, virtualMachine.getTraceName());
+        ss.getQuarkRelativeAndAdd(quarkPCPUs, cpu.toString());
+
+        Integer currentVCpu = vcpu.getCpuId().intValue();
 
         /* Set the value of the vcpu that is going to run. */
         int quarkVCpu = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.VIRTUAL_CPU);
@@ -118,7 +185,5 @@ public class KvmEntryHandler extends VMKernelEventHandler {
         /* Restore the thread of the VM that was running. */
         value = vcpu.getCurrentThread();
         ss.modifyAttribute(timestamp, value, quark);
-
     }
-
 }
