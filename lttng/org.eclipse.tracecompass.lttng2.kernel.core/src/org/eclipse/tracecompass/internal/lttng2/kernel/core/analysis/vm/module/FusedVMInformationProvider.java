@@ -1,5 +1,7 @@
 package org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -100,7 +102,7 @@ public class FusedVMInformationProvider {
         return ssq.getQuarkAbsoluteAndAdd(Attributes.SOFT_IRQS);
     }
 
-    public static int getNodeNsInum(ITmfStateSystem ssq, long time, String machineName, Integer threadID) throws AttributeNotFoundException, StateSystemDisposedException {
+    public static int getNodeNsInum(ITmfStateSystem ssq, long time, String machineName, int threadID) throws AttributeNotFoundException, StateSystemDisposedException {
         int quark = ssq.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ssq), machineName, Integer.toString(threadID), Attributes.NS_MAX_LEVEL);
         ITmfStateInterval interval = ssq.querySingleState(time, quark);
         quark = ssq.getQuarkRelative(FusedVMInformationProvider.getNodeThreads(ssq), machineName, Integer.toString(threadID));
@@ -162,6 +164,63 @@ public class FusedVMInformationProvider {
             pcpus.add(ssq.getAttributeName(pCpuqQuark));
         }
         return pcpus;
+    }
+
+    // Method for debug purpose
+    // Transform timestamp to something readable: hh:mm:ss
+    public static String formatTime(long time) {
+
+        return formatTimeAbs(time);
+    }
+
+    private static String formatNs(long srcTime) {
+        StringBuffer str = new StringBuffer();
+        long ns = Math.abs(srcTime % 1000000000);
+        String nanos = Long.toString(ns);
+        str.append("000000000".substring(nanos.length())); //$NON-NLS-1$
+        str.append(nanos);
+        return str.substring(0, 9);
+    }
+
+    private static String formatTimeAbs(long time) {
+        StringBuffer str = new StringBuffer();
+
+        // format time from nanoseconds to calendar time HH:MM:SS
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+        String stime = timeFormat.format(new Date(time / 1000000));
+        str.append(stime);
+        str.append('.');
+        // append the Milliseconds, MicroSeconds and NanoSeconds as specified in
+        // the Resolution
+        str.append(formatNs(time));
+        return str.toString();
+    }
+
+    /**
+     * Build the thread attribute name.
+     *
+     * For all threads except "0" this is the string representation of the threadId.
+     * For thread "0" which is the idle thread and can be running concurrently on multiple
+     * CPUs, append "_cpuId".
+     *
+     * @param threadId
+     *              the thread id
+     * @param cpuId
+     *              the cpu id
+     *
+     * @return the thread attribute name
+     *         null if the threadId is zero and the cpuId is null
+     */
+    public static @Nullable String buildThreadAttributeName(int threadId, @Nullable Integer cpuId) {
+
+        if (threadId == 0) {
+            if (cpuId == null) {
+                return null;
+            }
+            return Attributes.THREAD_0_PREFIX + String.valueOf(cpuId);
+        }
+
+        return String.valueOf(threadId);
     }
 
 }

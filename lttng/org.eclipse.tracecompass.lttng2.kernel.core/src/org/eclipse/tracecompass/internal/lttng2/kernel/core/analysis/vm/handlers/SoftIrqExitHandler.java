@@ -12,6 +12,7 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.F
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
+import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
@@ -40,6 +41,7 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
             }
         }
 
+        int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
         Integer softIrqId = ((Long) event.getContent().getField(getLayout().fieldVec()).getValue()).intValue();
         int currentThreadNode = FusedVMEventHandlerUtils.getCurrentThreadNode(cpu, ss);
         /* Put this SoftIRQ back to inactive (= -1) in the resource tree */
@@ -60,14 +62,30 @@ public class SoftIrqExitHandler extends VMKernelEventHandler {
             }
         }
 
+        /*
+         * If the trace that generates the event doesn't match the currently
+         * running machine on this pcpu then we do not modify the state system.
+         */
+        boolean modify = true;
+        if (host != null) {
+            int machineNameQuark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
+            try {
+                modify = ss.querySingleState(timestamp, machineNameQuark).getStateValue().unboxStr().equals(host.getTraceName());
+            } catch (StateSystemDisposedException e) {
+                e.printStackTrace();
+            }
+        }
+
         /* Set the previous process back to running */
         FusedVMEventHandlerUtils.setProcessToRunning(timestamp, currentThreadNode, ss);
 
         /* Set the CPU status back to "busy" or "idle" */
-//        FusedVMEventHandlerUtils.cpuExitInterrupt(timestamp, cpu, ss);
-        quark = ss.getQuarkRelativeAndAdd(FusedVirtualMachineStateProvider.getCurrentCPUNode(cpu, ss), Attributes.STATUS);
+        quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         ITmfStateValue value = cpuObject.getStateBeforeIRQ();
-        ss.modifyAttribute(timestamp, value, quark);
+        cpuObject.setCurrentState(value);
+        if (modify) {
+            ss.modifyAttribute(timestamp, value, quark);
+        }
 
     }
 

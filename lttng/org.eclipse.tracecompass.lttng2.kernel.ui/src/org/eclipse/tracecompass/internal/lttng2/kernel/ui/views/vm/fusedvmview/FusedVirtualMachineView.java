@@ -32,6 +32,7 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.F
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.FusedVirtualMachineAnalysis;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.trace.VirtualMachineExperiment;
+import org.eclipse.tracecompass.internal.lttng2.kernel.ui.Activator;
 import org.eclipse.tracecompass.internal.lttng2.kernel.ui.views.vm.fusedvmview.FusedVMViewEntry.Type;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystem;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
@@ -202,7 +203,8 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                     value = interval.getStateValue();
                     int threadID = value.unboxInt();
 
-                    int execNameQuark = ssq.getQuarkAbsolute(Attributes.THREADS, machineName, Integer.toString(threadID), Attributes.EXEC_NAME);
+                    String threadAttributeName = FusedVMInformationProvider.buildThreadAttributeName(threadID, Integer.parseInt(ssq.getAttributeName(cpuQuark)));
+                    int execNameQuark = ssq.getQuarkAbsolute(Attributes.THREADS, machineName, threadAttributeName, Attributes.EXEC_NAME);
                     interval = ssq.querySingleState(begin, execNameQuark);
                     value = interval.getStateValue();
                     String threadName = value.unboxStr();
@@ -213,8 +215,13 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                     interval = ssq.querySingleState(begin, conditionQuark);
                     value = interval.getStateValue();
                     int condition = value.unboxInt();
-                    if (condition == StateValues.CONDITION_IN_VM) {
-                        int machineVCpuQuark = ssq.getQuarkRelative(cpuQuark, Attributes.VIRTUAL_CPU);
+                    List<Integer> list = ssq.getQuarks(cpuQuark, Attributes.VIRTUAL_CPU);
+                    if (condition == StateValues.CONDITION_IN_VM && !list.isEmpty()) {
+                        /*
+                         * Trick to get the quark and don't generate an
+                         * exception if it's not there
+                         */
+                        int machineVCpuQuark = list.get(0);
                         interval = ssq.querySingleState(begin, machineVCpuQuark);
                         value = interval.getStateValue();
                         int vcpu = value.unboxInt();
@@ -223,14 +230,20 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
                         presentationProvider.setSelectedCpu(Integer.parseInt(ssq.getAttributeName(cpuQuark)));
                     }
 
+                    /*
+                     * To look for the namespace number we look at process 1 if
+                     * we are on process 0
+                     */
+                    if (threadID == 0) {
+                        threadID++;
+                    }
                     int nsInumQuark = FusedVMInformationProvider.getNodeNsInum(ssq, begin, machineName, threadID);
                     interval = ssq.querySingleState(begin, nsInumQuark);
                     String container = Long.toString(interval.getStateValue().unboxLong());
                     presentationProvider.setSelectedContainer(container);
 
                 } catch (AttributeNotFoundException e) {
-                    // Activator.getDefault().logError("Error in
-                    // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                     Activator.getDefault().logError("Error in FusedVirtualMachineView, timestamp: " + FusedVMInformationProvider.formatTime(event.getBeginTime()), e); //$NON-NLS-1$
                 } catch (StateSystemDisposedException e) {
                     /* Ignored */
                 }
@@ -435,6 +448,7 @@ public class FusedVirtualMachineView extends AbstractStateSystemTimeGraphView {
         /* All traces are highlighted by default. */
         /* Remove highlighted machines from other analysis. */
         presentationProvider.destroyHightlightedMachines();
+        // TODO: do this part in createHierarchy
         for (String machineName : FusedVMInformationProvider.getMachinesTraced(ssq)) {
             ITmfStateValue machineType = FusedVMInformationProvider.getTypeMachine(ssq, machineName);
             if (machineType == null) {

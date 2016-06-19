@@ -13,6 +13,7 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.L
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
+import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.statesystem.core.statevalue.TmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
@@ -41,6 +42,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
                 return;
             }
         }
+
 
         ITmfEventField content = event.getContent();
         Integer prevTid = ((Long) content.getField(getLayout().fieldPrevTid()).getValue()).intValue();
@@ -80,10 +82,23 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
 
         /* Set the current scheduled process on the relevant CPU */
         int currentCPUNode = FusedVMEventHandlerUtils.getCurrentCPUNode(cpu, ss);
-        ITmfStateValue stateProcess = setCpuProcess(ss, nextTid, timestamp, currentCPUNode);
+
+        /*
+         * If the trace that generates the event doesn't match the currently
+         * running machine on this pcpu then we do not modify the state system.
+         */
+        boolean modify = true;
+        int machineNameQuark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
+        try {
+            modify = ss.querySingleState(timestamp, machineNameQuark).getStateValue().unboxStr().equals(machineName);
+        } catch (StateSystemDisposedException e) {
+            e.printStackTrace();
+        }
+
+        ITmfStateValue stateProcess = setCpuProcess(ss, nextTid, timestamp, currentCPUNode, modify);
 
         /* Set the status of the CPU itself */
-        ITmfStateValue stateCpu = setCpuStatus(ss, nextTid, newCurrentThreadNode, timestamp, currentCPUNode);
+        ITmfStateValue stateCpu = setCpuStatus(ss, nextTid, newCurrentThreadNode, timestamp, currentCPUNode, modify);
 
         /* Remember the cpu used by the namespaces containing the next thread */
         if (nextTid != 0) {
@@ -140,7 +155,7 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
         return state == 0;
     }
 
-    private static ITmfStateValue setCpuStatus(ITmfStateSystemBuilder ss, Integer nextTid, Integer newCurrentThreadNode, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
+    private static ITmfStateValue setCpuStatus(ITmfStateSystemBuilder ss, Integer nextTid, Integer newCurrentThreadNode, long timestamp, int currentCPUNode, boolean modify) throws AttributeNotFoundException {
         int quark;
         ITmfStateValue value;
         if (nextTid > 0) {
@@ -152,23 +167,29 @@ public class SchedSwitchHandler extends VMKernelEventHandler {
             } else {
                 value = StateValues.CPU_STATUS_RUN_SYSCALL_VALUE;
             }
-            quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
-            ss.modifyAttribute(timestamp, value, quark);
+            if (modify) {
+                quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
+                ss.modifyAttribute(timestamp, value, quark);
+            }
         } else {
             value = StateValues.CPU_STATUS_IDLE_VALUE;
-            quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
-            ss.modifyAttribute(timestamp, value, quark);
+            if (modify) {
+                quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
+                ss.modifyAttribute(timestamp, value, quark);
+            }
         }
         return value;
 
     }
 
-    private static ITmfStateValue setCpuProcess(ITmfStateSystemBuilder ss, Integer nextTid, long timestamp, int currentCPUNode) throws AttributeNotFoundException {
+    private static ITmfStateValue setCpuProcess(ITmfStateSystemBuilder ss, Integer nextTid, long timestamp, int currentCPUNode, boolean modify) throws AttributeNotFoundException {
         int quark;
         ITmfStateValue value;
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.CURRENT_THREAD);
         value = TmfStateValue.newValueInt(nextTid);
-        ss.modifyAttribute(timestamp, value, quark);
+        if (modify) {
+            ss.modifyAttribute(timestamp, value, quark);
+        }
         return value;
     }
 

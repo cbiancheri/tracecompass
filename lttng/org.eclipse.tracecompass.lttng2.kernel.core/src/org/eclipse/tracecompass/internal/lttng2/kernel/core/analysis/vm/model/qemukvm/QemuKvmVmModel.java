@@ -92,20 +92,10 @@ public class QemuKvmVmModel implements IVirtualMachineModel {
     public @Nullable VirtualMachine getCurrentMachine(ITmfEvent event) {
         final String hostId = event.getTrace().getHostId();
         VirtualMachine machine = fKnownMachines.get(hostId);
-//        if (machine != null) {
-//            return machine;
-//        }
 
         /*
-         * TODO: This model wouldn't support a machine (same hostId) being both
-         * a guest and a host
-         * Cédric: working on that
-         */
-
-        /*
-         * This code path would be used only at the beginning of the analysis.
-         * Once all the hostIds have been associated with a virtual machine, the
-         * machines are all cached and the method returns earlier
+         * Even if the machine is known we need to continue because it might not
+         * currently have all its roles
          */
         /* Try to get the virtual machine from the event */
         String eventName = event.getName();

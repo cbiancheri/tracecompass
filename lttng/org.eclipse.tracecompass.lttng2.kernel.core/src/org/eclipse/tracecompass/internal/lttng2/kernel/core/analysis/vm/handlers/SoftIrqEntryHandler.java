@@ -8,6 +8,7 @@ import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.F
 import org.eclipse.tracecompass.internal.lttng2.kernel.core.analysis.vm.module.StateValues;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.statesystem.core.exceptions.AttributeNotFoundException;
+import org.eclipse.tracecompass.statesystem.core.exceptions.StateSystemDisposedException;
 import org.eclipse.tracecompass.statesystem.core.statevalue.ITmfStateValue;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 
@@ -41,6 +42,20 @@ public class SoftIrqEntryHandler extends VMKernelEventHandler {
         int currentThreadNode = FusedVMEventHandlerUtils.getCurrentThreadNode(cpu, ss);
 
         /*
+         * If the trace that generates the event doesn't match the currently
+         * running machine on this pcpu then we do not modify the state system.
+         */
+        boolean modify = true;
+        if (host != null) {
+            int machineNameQuark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.MACHINE_NAME);
+            try {
+                modify = ss.querySingleState(timestamp, machineNameQuark).getStateValue().unboxStr().equals(host.getTraceName());
+            } catch (StateSystemDisposedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        /*
          * Mark this SoftIRQ as active in the resource tree. The state value =
          * the CPU on which this SoftIRQ is processed
          */
@@ -56,13 +71,17 @@ public class SoftIrqEntryHandler extends VMKernelEventHandler {
         /* Change the status of the CPU to interrupted */
         quark = ss.getQuarkRelativeAndAdd(currentCPUNode, Attributes.STATUS);
         value = ss.queryOngoingState(quark);
+        value = cpuObject.getCurrentState();
 //        cpuObject.setCurrentState(value);
         if (value != StateValues.CPU_STATUS_SOFTIRQ_VALUE && value != StateValues.SOFT_IRQ_RAISED_VALUE) {
             /* Save only if we are not doing multiple soft irqs */
             cpuObject.setStateBeforeIRQ(value);
         }
         value = StateValues.CPU_STATUS_SOFTIRQ_VALUE;
-        ss.modifyAttribute(timestamp, value, quark);
+        cpuObject.setCurrentState(value);
+        if (modify) {
+            ss.modifyAttribute(timestamp, value, quark);
+        }
 
     }
 }

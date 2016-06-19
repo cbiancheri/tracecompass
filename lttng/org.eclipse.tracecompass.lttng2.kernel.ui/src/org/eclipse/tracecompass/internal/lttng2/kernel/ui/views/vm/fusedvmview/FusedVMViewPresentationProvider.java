@@ -317,7 +317,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                 }
                             }
                         } catch (TimeRangeException | StateValueTypeException e) {
-                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
                         } catch (StateSystemDisposedException e) {
                             /* Ignored */
                         }
@@ -341,7 +341,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                                 }
                             }
                         } catch (TimeRangeException | StateValueTypeException e) {
-                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
                         } catch (StateSystemDisposedException e) {
                             /* Ignored */
                         }
@@ -403,7 +403,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                             }
 
                         } catch (AttributeNotFoundException | TimeRangeException | StateValueTypeException e) {
-                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+                            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
                         } catch (StateSystemDisposedException e) {
                             /* Ignored */
                         }
@@ -468,7 +468,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             ITmfStateValue value = interval.getStateValue();
             machineName = value.unboxStr();
         } catch (AttributeNotFoundException e) {
-            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
@@ -534,7 +534,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 time = Math.max(tidInterval.getEndTime() + 1, drawingHelper.getTimeAtX(x + 1));
             }
         } catch (AttributeNotFoundException | TimeRangeException | StateValueTypeException e) {
-            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
         } catch (StateSystemDisposedException e) {
             /* Ignored */
         }
@@ -585,8 +585,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             ITmfStateValue value = interval.getStateValue();
             machineName = value.unboxStr();
         } catch (AttributeNotFoundException e) {
-            // Activator.getDefault().logError("Error in
-            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//             Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
@@ -645,8 +644,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
                 }
             }
         } catch (AttributeNotFoundException e) {
-            // Activator.getDefault().logError("Error in
-            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
@@ -694,8 +692,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             quark = FusedVMInformationProvider.getNodeNsInum(ss, time, machineName, tid);
             nsID = Long.toString(ss.querySingleState(time, quark).getStateValue().unboxLong());
         } catch (AttributeNotFoundException e) {
-            // Activator.getDefault().logError("Error in
-            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */
@@ -749,8 +746,7 @@ public class FusedVMViewPresentationProvider extends TimeGraphPresentationProvid
             return fDimAlpha;
 
         } catch (AttributeNotFoundException e) {
-            // Activator.getDefault().logError("Error in
-            // FusedVMViewPresentationProvider", e); //$NON-NLS-1$
+//            Activator.getDefault().logError("Error in FusedVMViewPresentationProvider, timestamp: " + FusedVMInformationProvider.formatTime(event.getTime()), e); //$NON-NLS-1$
             /* Can happen for events at the beginning of the trace */
         } catch (StateSystemDisposedException e) {
             /* Ignored */

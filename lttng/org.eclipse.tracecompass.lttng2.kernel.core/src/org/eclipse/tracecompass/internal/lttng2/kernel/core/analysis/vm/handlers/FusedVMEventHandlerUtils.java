@@ -376,7 +376,7 @@ public class FusedVMEventHandlerUtils {
         return formatTimeAbs(time);
     }
 
-    public static String formatNs(long srcTime) {
+    private static String formatNs(long srcTime) {
         StringBuffer str = new StringBuffer();
         long ns = Math.abs(srcTime % 1000000000);
         String nanos = Long.toString(ns);
@@ -385,7 +385,7 @@ public class FusedVMEventHandlerUtils {
         return str.substring(0, 9);
     }
 
-    public static String formatTimeAbs(long time) {
+    private static String formatTimeAbs(long time) {
         StringBuffer str = new StringBuffer();
 
         // format time from nanoseconds to calendar time HH:MM:SS
